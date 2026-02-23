@@ -101,6 +101,30 @@ export default function Settings() {
     toastTimer.current = setTimeout(() => setToastVisible(false), 2500)
   }
 
+  function exportData() {
+    const data = { exportedAt: new Date().toISOString(), settings: {}, ideas: [], journalEntries: {}, calendarEntries: [], trendingResults: [] }
+
+    data.settings = { topics: JSON.parse(localStorage.getItem('cj_topics') || '[]'), tone: localStorage.getItem('cj_tone') || '' }
+    data.ideas = JSON.parse(localStorage.getItem('cj_ideas') || '[]')
+    data.calendarEntries = JSON.parse(localStorage.getItem('cj_calendar_entries') || '[]')
+    data.trendingResults = JSON.parse(localStorage.getItem('cj_trending_results') || '[]')
+
+    for (let i = 0; i < localStorage.length; i++) {
+      const key = localStorage.key(i)
+      if (key && key.startsWith('cj_journal_')) {
+        data.journalEntries[key] = localStorage.getItem(key)
+      }
+    }
+
+    const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' })
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = `content-journal-export-${new Date().toISOString().slice(0, 10)}.json`
+    a.click()
+    URL.revokeObjectURL(url)
+  }
+
   function persistAll(newApiKey, newTopics, newTone) {
     localStorage.setItem('cj_apiKey', newApiKey)
     localStorage.setItem('cj_topics', JSON.stringify(newTopics))
@@ -301,6 +325,35 @@ export default function Settings() {
               boxSizing: 'border-box',
             }}
           />
+        </Section>
+
+        {/* ── Export Data ── */}
+        <Section label="export data" hint="downloads all your ideas, journal entries, calendar, and trending results as a JSON file">
+          <button
+            onClick={exportData}
+            style={{
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: '8px',
+              background: '#1a1a2e',
+              color: '#fff',
+              border: '2px solid #1a1a2e',
+              borderRadius: '12px',
+              padding: '11px 20px',
+              fontFamily: 'Syne, sans-serif',
+              fontWeight: 700,
+              fontSize: '14px',
+              cursor: 'pointer',
+              boxShadow: '3px 3px 0px #8B5CF6',
+            }}
+          >
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+              <polyline points="7 10 12 15 17 10"/>
+              <line x1="12" y1="15" x2="12" y2="3"/>
+            </svg>
+            download backup
+          </button>
         </Section>
 
       </div>
