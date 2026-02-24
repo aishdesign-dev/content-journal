@@ -301,7 +301,8 @@ export default function Trending() {
       `For each idea return JSON with: post_copy, image_idea, content_type, trend_source.\n` +
       `trend_source should be the specific thing you found trending (e.g. "Gemini 3.1 launch", "xAI + SpaceX merger").\n` +
       `content_type must be one of: building, learning, design, video, life, ct-ai, fun.\n` +
-      `Respond with valid JSON array only, no markdown backticks.`
+      `Respond with valid JSON array only, no markdown backticks.\n\n` +
+      `only include trends, news and topics from the last 14 days. do not reference anything older than 2 weeks. if you cannot find recent content on a topic, skip it and focus on what is actually trending right now.`
 
     try {
       const res = await fetch('https://api.anthropic.com/v1/messages', {
