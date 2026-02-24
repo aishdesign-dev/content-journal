@@ -20,33 +20,14 @@ export async function upsertJournalEntry(date, fields, userId) {
   console.log('[db] upsertJournalEntry date:', date, 'userId:', userId, 'fields:', Object.keys(fields))
   if (!userId) throw new Error('upsertJournalEntry called with no userId — user not authenticated')
 
-  const { data: rows, error: selErr } = await supabase
+  const { error } = await supabase
     .from('journal_entries')
-    .select('date')
-    .eq('date', date)
-    .eq('user_id', userId)
-    .limit(1)
-
-  if (selErr) throw new Error('db select: ' + selErr.message)
-
-  const exists = (rows?.length ?? 0) > 0
-  console.log('[db] upsertJournalEntry row exists:', exists)
-
-  if (exists) {
-    const { error } = await supabase
-      .from('journal_entries')
-      .update(fields)
-      .eq('date', date)
-      .eq('user_id', userId)
-    if (error) throw new Error('db update: ' + error.message)
-    console.log('[db] upsertJournalEntry updated ok')
-  } else {
-    const { error } = await supabase
-      .from('journal_entries')
-      .insert({ entry_text: '', date, user_id: userId, ...fields })
-    if (error) throw new Error('db insert: ' + error.message)
-    console.log('[db] upsertJournalEntry inserted ok')
-  }
+    .upsert(
+      { entry_text: '', date, user_id: userId, ...fields },
+      { onConflict: 'date,user_id' }
+    )
+  if (error) throw new Error('db upsert: ' + error.message)
+  console.log('[db] upsertJournalEntry ok')
 }
 
 export async function getAllJournalEntries(userId) {
