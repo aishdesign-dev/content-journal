@@ -159,7 +159,7 @@ export default function App() {
           })}
         </nav>
 
-        {/* Streak badge */}
+        {/* Credit tag */}
         <div style={{
           background: '#FFD93D',
           border: '2px solid #1a1a2e',
@@ -168,8 +168,15 @@ export default function App() {
           marginTop: '16px',
           boxShadow: '3px 3px 0px #1a1a2e',
         }}>
-          <div style={{ fontFamily: 'Syne, sans-serif', fontWeight: 800, fontSize: '22px', color: '#1a1a2e' }}>🔥 12</div>
-          <div style={{ fontFamily: 'DM Sans, sans-serif', fontSize: '12px', color: '#555', marginTop: '2px' }}>Day streak — keep it up!</div>
+          <div style={{ fontFamily: 'DM Sans, sans-serif', fontSize: '12px', color: '#1a1a2e' }}>
+            made with love by{' '}
+            <a
+              href="https://x.com/aishdesign"
+              target="_blank"
+              rel="noopener noreferrer"
+              style={{ color: '#1a1a2e', fontWeight: 700, textDecoration: 'underline' }}
+            >@aishdesign</a>
+          </div>
         </div>
       </aside>
 
