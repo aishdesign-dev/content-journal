@@ -24,14 +24,14 @@ export async function upsertJournalEntry(date, fields, userId) {
   if (existing) {
     const { error } = await supabase
       .from('journal_entries')
-      .update({ ...fields, updated_at: new Date().toISOString() })
+      .update(fields)
       .eq('date', date)
       .eq('user_id', userId)
     if (error) console.error('upsertJournalEntry update:', error)
   } else {
     const { error } = await supabase
       .from('journal_entries')
-      .insert({ date, user_id: userId, ...fields, updated_at: new Date().toISOString() })
+      .insert({ date, user_id: userId, ...fields })
     if (error) console.error('upsertJournalEntry insert:', error)
   }
 }
