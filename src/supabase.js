@@ -7,5 +7,10 @@ export const supabase = createClient(
     auth: {
       lock: (_name, _acquireTimeout, fn) => fn(),
     },
+    realtime: {
+      params: { eventsPerSecond: 0 },
+      reconnectAfterMs: () => 9999999,
+      heartbeatIntervalMs: 9999999,
+    },
   }
 )
