@@ -105,7 +105,15 @@ function LoadingScreen() {
 
 export default function App() {
   const { user, profile, authLoading, signOut } = useAuth()
-  const [active, setActive] = useState('journal')
+  const [active, setActive] = useState(() => {
+    const saved = localStorage.getItem('cj_active_view')
+    return saved && VIEWS[saved] ? saved : 'journal'
+  })
+
+  function navigate(view) {
+    setActive(view)
+    localStorage.setItem('cj_active_view', view)
+  }
 
   if (authLoading) return <LoadingScreen />
   if (!user) return <Login />
@@ -159,7 +167,7 @@ export default function App() {
             return (
               <button
                 key={item.id}
-                onClick={() => setActive(item.id)}
+                onClick={() => navigate(item.id)}
                 style={{
                   display: 'flex',
                   alignItems: 'center',
