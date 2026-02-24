@@ -21,7 +21,7 @@ export async function upsertJournalEntry(date, fields, userId) {
     .eq('user_id', userId)
     .limit(1)
 
-  if (selErr) { console.error('upsertJournalEntry select:', selErr); return }
+  if (selErr) throw new Error('db select: ' + selErr.message)
 
   const exists = (rows?.length ?? 0) > 0
 
@@ -31,12 +31,12 @@ export async function upsertJournalEntry(date, fields, userId) {
       .update(fields)
       .eq('date', date)
       .eq('user_id', userId)
-    if (error) console.error('upsertJournalEntry update:', error)
+    if (error) throw new Error('db update: ' + error.message)
   } else {
     const { error } = await supabase
       .from('journal_entries')
       .insert({ entry_text: '', date, user_id: userId, ...fields })
-    if (error) console.error('upsertJournalEntry insert:', error)
+    if (error) throw new Error('db insert: ' + error.message)
   }
 }
 

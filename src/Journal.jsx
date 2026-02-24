@@ -221,6 +221,10 @@ export default function Journal() {
         setSaved(row.saved_indices || {})
       }
       setIsLoading(false)
+    }).catch(e => {
+      console.error('load journal entry:', e)
+      setError('failed to load: ' + e.message)
+      setIsLoading(false)
     })
   }, [user])
 
@@ -310,6 +314,7 @@ export default function Journal() {
         setError('got a weird response — try again?')
       } else {
         setError(e.message || 'something went wrong')
+        console.error('generateIdeas error:', e)
       }
     } finally {
       setLoading(false)
