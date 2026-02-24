@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { insertIdea } from './db.js'
 
 // ── Shared config ─────────────────────────────────────────────────────────────
 const TYPE_CONFIG = {
@@ -27,21 +28,19 @@ function loadSettings() {
   }
 }
 
-function saveIdeaToBank(idea, idx) {
-  const existing = JSON.parse(localStorage.getItem('cj_ideas') || '[]')
-  const next = [{
-    id:           Date.now() + idx,
+async function saveIdeaToBank(idea, idx) {
+  await insertIdea({
+    id:           String(Date.now() + idx),
     title:        (idea.post_copy || '').slice(0, 60),
     body:         idea.post_copy  || '',
     image_idea:   idea.image_idea || '',
     status:       'Draft',
-    statusColor:  '#FFD93D',
+    status_color: '#FFD93D',
     content_type: idea.content_type,
     source:       'trending',
     trend_source: idea.trend_source,
-    savedAt:      new Date().toISOString(),
-  }, ...existing]
-  localStorage.setItem('cj_ideas', JSON.stringify(next))
+    saved_at:     new Date().toISOString(),
+  })
 }
 
 function formatTs(iso) {
@@ -286,11 +285,22 @@ export default function Trending() {
     setResults([])
     setSaved({})
 
-    const topicsStr    = currentTopics.join(', ')
-    const userMessage  =
-      `search for what is trending today in these topics: ${topicsStr}.\n` +
-      `Generate 3-5 tweet ideas based on current trends, written in my voice.\n` +
+    const topicsStr   = currentTopics.join(', ')
+    const userMessage =
+      `search for what is actually trending RIGHT NOW today in these topics: ${topicsStr}.\n\n` +
+      `Find real specific things — model drops, company news, viral moments, price moves, tool releases, anything blowing up.\n\n` +
+      `Then generate 5-7 tweet ideas reacting to these trends in my voice. Mix these formats:\n` +
+      `- meme-style reactive posts: "[specific thing that just happened] and i can't keep up 😭 meanwhile i'm just here [my personal thing]"\n` +
+      `- the chaos contrast: big wild world news vs my quiet grind designing/coding/animating from india\n` +
+      `- hot takes on what the trend means for design, crypto, or building in public\n` +
+      `- relatable overwhelm at how fast things are moving in AI/CT/tech\n` +
+      `- punchy lowercase lines that feel like texting a friend who's also into this stuff\n\n` +
+      `the energy i want: self-aware, a little chaotic, grounded in my actual life, never corporate, always lowercase.\n\n` +
+      `example of the exact vibe:\n` +
+      `"AI is getting wild rn and i can't keep up 😭 gemini 3.1 with 1M token context. spacex + xAI merging into a $1.25T company. apple rebuilding siri from scratch. meanwhile i'm just here using it to vibe code crypto dashboards and animate stuff at 2am from india"\n\n` +
       `For each idea return JSON with: post_copy, image_idea, content_type, trend_source.\n` +
+      `trend_source should be the specific thing you found trending (e.g. "Gemini 3.1 launch", "xAI + SpaceX merger").\n` +
+      `content_type must be one of: building, learning, design, video, life, ct-ai, fun.\n` +
       `Respond with valid JSON array only, no markdown backticks.`
 
     try {
@@ -304,7 +314,7 @@ export default function Trending() {
         },
         body: JSON.stringify({
           model: 'claude-sonnet-4-6',
-          max_tokens: 2000,
+          max_tokens: 3000,
           system: toneGuide || 'You are a helpful content assistant.',
           tools: [{ type: 'web_search_20250305', name: 'web_search' }],
           messages: [{ role: 'user', content: userMessage }],
@@ -347,10 +357,14 @@ export default function Trending() {
     }
   }
 
-  function handleSave(idea, idx) {
-    saveIdeaToBank(idea, idx)
-    setSaved(prev => ({ ...prev, [idx]: true }))
-    showToast('saved to idea bank!')
+  async function handleSave(idea, idx) {
+    try {
+      await saveIdeaToBank(idea, idx)
+      setSaved(prev => ({ ...prev, [idx]: true }))
+      showToast('saved to idea bank!')
+    } catch {
+      setError('failed to save — check your connection and try again')
+    }
   }
 
   return (

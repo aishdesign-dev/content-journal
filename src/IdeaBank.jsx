@@ -1,4 +1,13 @@
 import { useState, useRef, useEffect, useCallback } from 'react'
+import {
+  getIdeas,
+  insertIdea as dbInsertIdea,
+  updateIdea as dbUpdateIdea,
+  deleteIdea as dbDeleteIdea,
+  getCalendarPosts,
+  insertCalendarPost,
+  deleteCalendarPost as dbDeleteCalendarPost,
+} from './db.js'
 
 // ── Type config ───────────────────────────────────────────────────────────────
 const TYPE_CONFIG = {
@@ -16,14 +25,6 @@ function cfg(type) {
 }
 
 const ALL_TYPES = Object.keys(TYPE_CONFIG)
-
-// ── Persist helpers ───────────────────────────────────────────────────────────
-function loadIdeas() {
-  return JSON.parse(localStorage.getItem('cj_ideas') || '[]')
-}
-function saveIdeas(list) {
-  localStorage.setItem('cj_ideas', JSON.stringify(list))
-}
 
 // ── Auto-resize textarea ──────────────────────────────────────────────────────
 function AutoTextarea({ value, onChange, placeholder, style }) {
@@ -62,7 +63,7 @@ function AutoTextarea({ value, onChange, placeholder, style }) {
 }
 
 // ── Calendar popover ──────────────────────────────────────────────────────────
-function CalendarPopover({ currentDate, onConfirm, onClose }) {
+function CalendarPopover({ currentDate, onConfirm, onClose, calendarPosts = [] }) {
   const [date, setDate] = useState(currentDate || '')
   const ref = useRef(null)
 
@@ -75,13 +76,9 @@ function CalendarPopover({ currentDate, onConfirm, onClose }) {
     return () => document.removeEventListener('mousedown', onDown)
   }, [onClose])
 
-  // Check how many posts are already on the selected date
-  const countOnDate = date
-    ? JSON.parse(localStorage.getItem('cj_calendar_entries') || '[]')
-        .filter(e => e.date === date).length
-    : 0
-  const isFull  = countOnDate >= 2
-  const isNew   = date !== currentDate
+  const countOnDate = date ? calendarPosts.filter(p => p.date === date).length : 0
+  const isFull = countOnDate >= 2
+  const isNew  = date !== currentDate
 
   return (
     <div ref={ref} style={{
@@ -237,7 +234,7 @@ function SourceTag({ source }) {
 }
 
 // ── Single idea card ──────────────────────────────────────────────────────────
-function IdeaCard({ idea, onUpdate, onDelete, onSchedule }) {
+function IdeaCard({ idea, onUpdate, onDelete, onSchedule, calendarPosts }) {
   const [showCalendar, setShowCalendar] = useState(false)
   const calRef = useRef(null)
 
@@ -245,8 +242,8 @@ function IdeaCard({ idea, onUpdate, onDelete, onSchedule }) {
     onUpdate(idea.id, { [key]: val })
   }
 
-  const scheduled = idea.scheduledDate
-    ? new Date(idea.scheduledDate + 'T00:00:00').toLocaleDateString('en-US', {
+  const scheduled = idea.scheduled_date
+    ? new Date(idea.scheduled_date + 'T00:00:00').toLocaleDateString('en-US', {
         month: 'short', day: 'numeric', year: 'numeric',
       })
     : null
@@ -370,12 +367,13 @@ function IdeaCard({ idea, onUpdate, onDelete, onSchedule }) {
 
         {showCalendar && (
           <CalendarPopover
-            currentDate={idea.scheduledDate || ''}
+            currentDate={idea.scheduled_date || ''}
             onConfirm={(date) => {
               onSchedule(idea.id, date)
               setShowCalendar(false)
             }}
             onClose={() => setShowCalendar(false)}
+            calendarPosts={calendarPosts}
           />
         )}
       </div>
@@ -436,67 +434,77 @@ function FilterBar({ active, counts, onChange }) {
 
 // ── Main component ────────────────────────────────────────────────────────────
 export default function IdeaBank() {
-  const [ideas, setIdeas] = useState(loadIdeas)
+  const [ideas, setIdeas] = useState([])
+  const [calendarPosts, setCalendarPosts] = useState([])
   const [filter, setFilter] = useState(null)
+  const [isLoading, setIsLoading] = useState(true)
   const [toast, setToast] = useState({ visible: false, message: '' })
-  const saveTimer = useRef(null)
+
+  // Per-idea debounce timers
+  const updateTimers = useRef(new Map())
+
+  useEffect(() => {
+    Promise.all([getIdeas(), getCalendarPosts()]).then(([ideasData, postsData]) => {
+      setIdeas(ideasData)
+      setCalendarPosts(postsData)
+      setIsLoading(false)
+    })
+  }, [])
 
   function showToast(msg) {
     setToast({ visible: true, message: msg })
     setTimeout(() => setToast(t => ({ ...t, visible: false })), 2200)
   }
 
-  // Debounced persist so inline typing doesn't hammer localStorage every keystroke
-  const persist = useCallback((list) => {
-    if (saveTimer.current) clearTimeout(saveTimer.current)
-    saveTimer.current = setTimeout(() => saveIdeas(list), 500)
+  // Optimistic update + debounced Supabase persist
+  const handleUpdate = useCallback((id, patch) => {
+    setIdeas(prev => prev.map(idea => idea.id === id ? { ...idea, ...patch } : idea))
+    if (updateTimers.current.has(id)) clearTimeout(updateTimers.current.get(id))
+    updateTimers.current.set(id, setTimeout(() => {
+      dbUpdateIdea(id, patch)
+      updateTimers.current.delete(id)
+    }, 500))
   }, [])
 
-  function updateIdea(id, patch) {
-    setIdeas(prev => {
-      const next = prev.map(idea => idea.id === id ? { ...idea, ...patch } : idea)
-      persist(next)
-      return next
-    })
-  }
-
-  function deleteIdea(id) {
-    setIdeas(prev => {
-      const next = prev.filter(i => i.id !== id)
-      saveIdeas(next) // immediate on delete
-      return next
-    })
+  function handleDelete(id) {
+    const idea = ideas.find(i => i.id === id)
+    setIdeas(prev => prev.filter(i => i.id !== id))
+    dbDeleteIdea(id)
+    // If scheduled, also remove the calendar post
+    if (idea?.scheduled_date) {
+      const post = calendarPosts.find(p => p.idea_id === id)
+      if (post) dbDeleteCalendarPost(post.id)
+      setCalendarPosts(prev => prev.filter(p => p.idea_id !== id))
+    }
     showToast('idea deleted')
   }
 
   function scheduleIdea(id, date) {
-    setIdeas(prev => {
-      const next = prev.map(idea =>
-        idea.id === id ? { ...idea, scheduledDate: date } : idea
-      )
-      saveIdeas(next)
-      return next
-    })
+    const idea = ideas.find(i => i.id === id)
+
+    // Update idea's scheduled_date optimistically
+    setIdeas(prev => prev.map(i => i.id === id ? { ...i, scheduled_date: date } : i))
+    dbUpdateIdea(id, { scheduled_date: date })
+
+    // Remove any existing calendar post for this idea
+    const existingPost = calendarPosts.find(p => p.idea_id === id)
+    if (existingPost) {
+      dbDeleteCalendarPost(existingPost.id)
+      setCalendarPosts(prev => prev.filter(p => p.idea_id !== id))
+    }
+
     if (date) {
-      // Also save to calendar entries for the Calendar view
-      const calEntries = JSON.parse(localStorage.getItem('cj_calendar_entries') || '[]')
-      const idea = ideas.find(i => i.id === id)
-      const entry = {
+      const newPost = {
         id: `${id}_${date}`,
-        ideaId: id,
+        idea_id: id,
         date,
         label: idea?.body?.slice(0, 60) ?? 'idea',
         type: idea?.content_type ?? 'building',
+        posted: false,
       }
-      const filtered = calEntries.filter(e => e.ideaId !== id)
-      localStorage.setItem('cj_calendar_entries', JSON.stringify([entry, ...filtered]))
+      setCalendarPosts(prev => [newPost, ...prev])
+      insertCalendarPost(newPost)
       showToast('added to calendar!')
-    } else {
-      // Remove from calendar entries
-      const calEntries = JSON.parse(localStorage.getItem('cj_calendar_entries') || '[]')
-      localStorage.setItem('cj_calendar_entries',
-        JSON.stringify(calEntries.filter(e => e.ideaId !== id))
-      )
     }
   }
 
@@ -518,70 +526,75 @@ export default function IdeaBank() {
           Idea Bank
         </h1>
         <p style={{ fontFamily: 'DM Sans, sans-serif', color: '#888', margin: 0, fontSize: 14 }}>
-          {ideas.length > 0
-            ? `${ideas.length} idea${ideas.length !== 1 ? 's' : ''} · click any field to edit`
-            : 'capture everything, filter later'}
+          {isLoading
+            ? 'loading...'
+            : ideas.length > 0
+              ? `${ideas.length} idea${ideas.length !== 1 ? 's' : ''} · click any field to edit`
+              : 'capture everything, filter later'}
         </p>
       </div>
 
-      {/* Filter bar — only if there are ideas */}
-      {ideas.length > 0 && (
-        <FilterBar active={filter} counts={counts} onChange={setFilter} />
-      )}
+      <div style={{ opacity: isLoading ? 0.5 : 1, transition: 'opacity 0.2s' }}>
+        {/* Filter bar — only if there are ideas */}
+        {ideas.length > 0 && (
+          <FilterBar active={filter} counts={counts} onChange={setFilter} />
+        )}
 
-      {/* Empty state */}
-      {ideas.length === 0 && (
-        <div style={{
-          border: '2px dashed #d0cdc8',
-          borderRadius: 20,
-          padding: '56px 32px',
-          textAlign: 'center',
-          maxWidth: 440,
-          marginTop: 12,
-        }}>
-          <div style={{ fontSize: 36, marginBottom: 12 }}>💡</div>
-          <p style={{
-            fontFamily: 'Syne, sans-serif', fontSize: 16, fontWeight: 700,
-            color: '#bbb', margin: '0 0 8px',
-          }}>no ideas yet — go journal your day!</p>
-          <p style={{
-            fontFamily: 'DM Sans, sans-serif', fontSize: 13,
-            color: '#ccc', margin: 0, lineHeight: 1.6,
-          }}>write in your journal and hit "generate ideas →"<br />to start building your bank</p>
-        </div>
-      )}
+        {/* Empty state */}
+        {!isLoading && ideas.length === 0 && (
+          <div style={{
+            border: '2px dashed #d0cdc8',
+            borderRadius: 20,
+            padding: '56px 32px',
+            textAlign: 'center',
+            maxWidth: 440,
+            marginTop: 12,
+          }}>
+            <div style={{ fontSize: 36, marginBottom: 12 }}>💡</div>
+            <p style={{
+              fontFamily: 'Syne, sans-serif', fontSize: 16, fontWeight: 700,
+              color: '#bbb', margin: '0 0 8px',
+            }}>no ideas yet — go journal your day!</p>
+            <p style={{
+              fontFamily: 'DM Sans, sans-serif', fontSize: 13,
+              color: '#ccc', margin: 0, lineHeight: 1.6,
+            }}>write in your journal and hit "generate ideas →"<br />to start building your bank</p>
+          </div>
+        )}
 
-      {/* Filtered empty state */}
-      {ideas.length > 0 && visible.length === 0 && (
-        <div style={{
-          border: '2px dashed #d0cdc8', borderRadius: 16,
-          padding: '36px 24px', textAlign: 'center', maxWidth: 360,
-        }}>
-          <p style={{ fontFamily: 'Syne, sans-serif', fontSize: 14, fontWeight: 700, color: '#bbb', margin: 0 }}>
-            no {filter} ideas yet
-          </p>
-        </div>
-      )}
+        {/* Filtered empty state */}
+        {ideas.length > 0 && visible.length === 0 && (
+          <div style={{
+            border: '2px dashed #d0cdc8', borderRadius: 16,
+            padding: '36px 24px', textAlign: 'center', maxWidth: 360,
+          }}>
+            <p style={{ fontFamily: 'Syne, sans-serif', fontSize: 14, fontWeight: 700, color: '#bbb', margin: 0 }}>
+              no {filter} ideas yet
+            </p>
+          </div>
+        )}
 
-      {/* Cards grid */}
-      {visible.length > 0 && (
-        <div style={{
-          display: 'grid',
-          gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))',
-          gap: 16,
-          alignItems: 'start',
-        }}>
-          {visible.map(idea => (
-            <IdeaCard
-              key={idea.id}
-              idea={idea}
-              onUpdate={updateIdea}
-              onDelete={deleteIdea}
-              onSchedule={scheduleIdea}
-            />
-          ))}
-        </div>
-      )}
+        {/* Cards grid */}
+        {visible.length > 0 && (
+          <div style={{
+            display: 'grid',
+            gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))',
+            gap: 16,
+            alignItems: 'start',
+          }}>
+            {visible.map(idea => (
+              <IdeaCard
+                key={idea.id}
+                idea={idea}
+                onUpdate={handleUpdate}
+                onDelete={handleDelete}
+                onSchedule={scheduleIdea}
+                calendarPosts={calendarPosts}
+              />
+            ))}
+          </div>
+        )}
+      </div>
     </div>
   )
 }

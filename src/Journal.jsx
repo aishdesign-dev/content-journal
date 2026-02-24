@@ -1,4 +1,5 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
+import { getJournalEntry, upsertJournalEntry, insertIdea } from './db.js'
 
 const TODAY_KEY = new Date().toISOString().slice(0, 10) // YYYY-MM-DD
 
@@ -195,16 +196,40 @@ function ErrorPill({ message }) {
 
 // ── Main component ────────────────────────────────────────────────────────────
 export default function Journal() {
-  const [entry, setEntry] = useState(() => localStorage.getItem(`cj_journal_${TODAY_KEY}`) || '')
+  const [entry, setEntry] = useState('')
   const [ideas, setIdeas] = useState([])
-  const [saved, setSaved] = useState({}) // index → bool
+  const [saved, setSaved] = useState({})
+  const [isLoading, setIsLoading] = useState(true)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState(null)
   const [toast, setToast] = useState({ visible: false, message: '' })
 
-  // Persist journal entry on every keystroke
+  // Skip the first debounce save triggered by loading data from DB
+  const skipNextSave = useRef(true)
+
+  // Load today's entry on mount
   useEffect(() => {
-    localStorage.setItem(`cj_journal_${TODAY_KEY}`, entry)
+    getJournalEntry(TODAY_KEY).then(row => {
+      if (row) {
+        skipNextSave.current = true
+        setEntry(row.entry_text || '')
+        setIdeas(row.generated_ideas || [])
+        setSaved(row.saved_indices || {})
+      }
+      setIsLoading(false)
+    })
+  }, [])
+
+  // Debounced persist of entry text
+  useEffect(() => {
+    if (skipNextSave.current) {
+      skipNextSave.current = false
+      return
+    }
+    const timer = setTimeout(() => {
+      upsertJournalEntry(TODAY_KEY, { entry_text: entry })
+    }, 800)
+    return () => clearTimeout(timer)
   }, [entry])
 
   function showToast(message) {
@@ -232,7 +257,16 @@ export default function Journal() {
 
     const userMessage =
       `here is what happened today: ${entry.trim()}.\n\n` +
-      `Generate 2-3 tweet ideas in my voice.\n` +
+      `Read everything carefully and extract as many distinct tweet ideas as possible — minimum 5, more if the content supports it. Cover every interesting angle, story, insight, or moment.\n\n` +
+      `Mix up the formats. include:\n` +
+      `- raw honest moments from the day (what i built, learned, struggled with)\n` +
+      `- at least 2 meme-style posts with this energy: "[big chaotic thing happening in AI/tech/crypto/world] and meanwhile i'm just here [my small relatable thing]" — self-aware, funny, lowercase\n` +
+      `- the contrast between big world chaos and my quiet grind from india at weird hours\n` +
+      `- reactive takes on anything wild mentioned in my day\n` +
+      `- punchy one-liners that feel like texting a friend, not a linkedin post\n\n` +
+      `examples of the vibe i want:\n` +
+      `"AI is getting wild rn and i can't keep up 😭 gemini 3.1 dropped, spacex merging with xAI, apple rebuilding siri. meanwhile i'm just here vibe coding crypto dashboards at 2am"\n` +
+      `"nobody talks about the 2am india timezone grind. everything ships while the rest of the world sleeps"\n\n` +
       `For each idea return JSON with: post_copy, image_idea, content_type.\n` +
       `content_type must be one of: building, learning, design, video, life, ct-ai, fun.\n` +
       `Respond with valid JSON array only, no markdown.`
@@ -248,7 +282,7 @@ export default function Journal() {
         },
         body: JSON.stringify({
           model: 'claude-sonnet-4-6',
-          max_tokens: 1000,
+          max_tokens: 2500,
           system: toneGuide || 'You are a helpful content assistant.',
           messages: [{ role: 'user', content: userMessage }],
         }),
@@ -261,10 +295,14 @@ export default function Journal() {
       }
 
       const raw = data.content?.[0]?.text?.trim() ?? ''
-      // Strip any accidental markdown fences just in case
       const clean = raw.replace(/^```(?:json)?\s*/i, '').replace(/\s*```$/, '').trim()
-      const parsed = JSON.parse(clean)
-      setIdeas(Array.isArray(parsed) ? parsed : [parsed])
+      const jsonMatch = clean.match(/\[[\s\S]*\]/)
+      if (!jsonMatch) throw new SyntaxError('no json array in response')
+      const parsed = JSON.parse(jsonMatch[0])
+      const newIdeas = Array.isArray(parsed) ? parsed : [parsed]
+      setIdeas(newIdeas)
+      setSaved({})
+      upsertJournalEntry(TODAY_KEY, { generated_ideas: newIdeas, saved_indices: {} })
     } catch (e) {
       if (e instanceof SyntaxError) {
         setError('got a weird response — try again?')
@@ -276,24 +314,30 @@ export default function Journal() {
     }
   }
 
-  function saveIdeaToBank(idea, idx) {
-    const existing = JSON.parse(localStorage.getItem('cj_ideas') || '[]')
+  async function saveIdeaToBank(idea, idx) {
     const newIdea = {
-      id: Date.now() + idx,
+      id: String(Date.now() + idx),
       title: idea.post_copy.length > 60
         ? idea.post_copy.slice(0, 60).trimEnd() + '…'
         : idea.post_copy,
       body: idea.post_copy,
       image_idea: idea.image_idea,
       status: 'Draft',
-      statusColor: '#FFD93D',
+      status_color: '#FFD93D',
       content_type: idea.content_type,
-      savedAt: new Date().toISOString(),
-      fromDate: TODAY_KEY,
+      source: 'journal',
+      saved_at: new Date().toISOString(),
+      from_date: TODAY_KEY,
     }
-    localStorage.setItem('cj_ideas', JSON.stringify([newIdea, ...existing]))
-    setSaved(prev => ({ ...prev, [idx]: true }))
-    showToast('saved to idea bank!')
+    try {
+      await insertIdea(newIdea)
+      const nextSaved = { ...saved, [idx]: true }
+      setSaved(nextSaved)
+      upsertJournalEntry(TODAY_KEY, { saved_indices: nextSaved })
+      showToast('saved to idea bank!')
+    } catch {
+      setError('failed to save — check your connection and try again')
+    }
   }
 
   const today = new Date()
@@ -334,103 +378,105 @@ export default function Journal() {
         }}>{fullDate}</h1>
       </div>
 
-      {/* Journal textarea */}
-      <div style={{
-        background: '#fff',
-        border: '2px solid #1a1a2e',
-        borderRadius: 16,
-        padding: '20px 22px',
-        boxShadow: '4px 4px 0px #e0ddd6',
-        marginBottom: 16,
-        maxWidth: 680,
-      }}>
-        <textarea
-          value={entry}
-          onChange={e => setEntry(e.target.value)}
-          placeholder="what happened today? just dump it all here..."
-          rows={10}
-          style={{
-            width: '100%',
-            border: 'none',
-            outline: 'none',
-            resize: 'vertical',
-            fontFamily: 'DM Sans, sans-serif',
-            fontSize: 15,
-            color: '#1a1a2e',
-            background: 'transparent',
-            lineHeight: 1.8,
-            boxSizing: 'border-box',
-          }}
-        />
-        {/* word count */}
-        {wordCount > 0 && (
-          <div style={{
-            textAlign: 'right',
-            fontFamily: 'DM Sans, sans-serif',
-            fontSize: 11,
-            color: '#c0bdb8',
-            marginTop: 4,
-          }}>{wordCount} word{wordCount !== 1 ? 's' : ''}</div>
+      <div style={{ opacity: isLoading ? 0.5 : 1, transition: 'opacity 0.2s' }}>
+        {/* Journal textarea */}
+        <div style={{
+          background: '#fff',
+          border: '2px solid #1a1a2e',
+          borderRadius: 16,
+          padding: '20px 22px',
+          boxShadow: '4px 4px 0px #e0ddd6',
+          marginBottom: 16,
+          maxWidth: 680,
+        }}>
+          <textarea
+            value={entry}
+            onChange={e => setEntry(e.target.value)}
+            placeholder="what happened today? just dump it all here..."
+            rows={10}
+            style={{
+              width: '100%',
+              border: 'none',
+              outline: 'none',
+              resize: 'vertical',
+              fontFamily: 'DM Sans, sans-serif',
+              fontSize: 15,
+              color: '#1a1a2e',
+              background: 'transparent',
+              lineHeight: 1.8,
+              boxSizing: 'border-box',
+            }}
+          />
+          {/* word count */}
+          {wordCount > 0 && (
+            <div style={{
+              textAlign: 'right',
+              fontFamily: 'DM Sans, sans-serif',
+              fontSize: 11,
+              color: '#c0bdb8',
+              marginTop: 4,
+            }}>{wordCount} word{wordCount !== 1 ? 's' : ''}</div>
+          )}
+        </div>
+
+        {/* Generate button + error */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 14, marginBottom: 36, maxWidth: 680, flexWrap: 'wrap' }}>
+          <button
+            onClick={generateIdeas}
+            disabled={loading}
+            style={{
+              background: loading ? '#d4d1cc' : '#8B5CF6',
+              color: loading ? '#888' : '#fff',
+              border: '2px solid #1a1a2e',
+              borderRadius: 12,
+              padding: '12px 22px',
+              fontFamily: 'Syne, sans-serif',
+              fontWeight: 700,
+              fontSize: 15,
+              cursor: loading ? 'not-allowed' : 'pointer',
+              boxShadow: loading ? 'none' : '4px 4px 0px #1a1a2e',
+              display: 'flex',
+              alignItems: 'center',
+              gap: 10,
+              transition: 'all 0.15s',
+            }}
+          >
+            {loading
+              ? <><Spinner size={16} colorBorder="#88888844" colorTop="#888" />generating...</>
+              : 'generate ideas →'}
+          </button>
+
+          {error && <ErrorPill message={error} />}
+        </div>
+
+        {/* Ideas */}
+        {ideas.length > 0 && (
+          <div style={{ maxWidth: 680 }}>
+            <p style={{
+              fontFamily: 'Syne, sans-serif',
+              fontSize: 11,
+              fontWeight: 700,
+              color: '#aaa',
+              textTransform: 'uppercase',
+              letterSpacing: '0.9px',
+              margin: '0 0 14px',
+            }}>
+              {ideas.length} idea{ideas.length !== 1 ? 's' : ''} generated
+            </p>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+              {ideas.map((idea, i) => (
+                <IdeaCard
+                  key={i}
+                  idea={idea}
+                  index={i}
+                  onSave={() => saveIdeaToBank(idea, i)}
+                  saved={!!saved[i]}
+                />
+              ))}
+            </div>
+          </div>
         )}
       </div>
-
-      {/* Generate button + error */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: 14, marginBottom: 36, maxWidth: 680, flexWrap: 'wrap' }}>
-        <button
-          onClick={generateIdeas}
-          disabled={loading}
-          style={{
-            background: loading ? '#d4d1cc' : '#8B5CF6',
-            color: loading ? '#888' : '#fff',
-            border: '2px solid #1a1a2e',
-            borderRadius: 12,
-            padding: '12px 22px',
-            fontFamily: 'Syne, sans-serif',
-            fontWeight: 700,
-            fontSize: 15,
-            cursor: loading ? 'not-allowed' : 'pointer',
-            boxShadow: loading ? 'none' : '4px 4px 0px #1a1a2e',
-            display: 'flex',
-            alignItems: 'center',
-            gap: 10,
-            transition: 'all 0.15s',
-          }}
-        >
-          {loading
-            ? <><Spinner size={16} colorBorder="#88888844" colorTop="#888" />generating...</>
-            : 'generate ideas →'}
-        </button>
-
-        {error && <ErrorPill message={error} />}
-      </div>
-
-      {/* Ideas */}
-      {ideas.length > 0 && (
-        <div style={{ maxWidth: 680 }}>
-          <p style={{
-            fontFamily: 'Syne, sans-serif',
-            fontSize: 11,
-            fontWeight: 700,
-            color: '#aaa',
-            textTransform: 'uppercase',
-            letterSpacing: '0.9px',
-            margin: '0 0 14px',
-          }}>
-            {ideas.length} idea{ideas.length !== 1 ? 's' : ''} generated
-          </p>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
-            {ideas.map((idea, i) => (
-              <IdeaCard
-                key={i}
-                idea={idea}
-                index={i}
-                onSave={() => saveIdeaToBank(idea, i)}
-                saved={!!saved[i]}
-              />
-            ))}
-          </div>
-        </div>
-      )}
     </div>
   )
 }

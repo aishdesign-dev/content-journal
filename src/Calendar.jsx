@@ -1,4 +1,11 @@
-import { useState } from 'react'
+import { useState, useRef, useEffect } from 'react'
+import {
+  getCalendarPosts,
+  getIdeas,
+  updateCalendarPost,
+  deleteCalendarPost,
+  updateIdea,
+} from './db.js'
 
 // ── Constants ─────────────────────────────────────────────────────────────────
 const TYPE_CONFIG = {
@@ -20,23 +27,12 @@ const MONTHS   = ['January','February','March','April','May','June',
 
 const TODAY_STR = new Date().toISOString().slice(0, 10)
 
-// ── Persist helpers ───────────────────────────────────────────────────────────
-function loadEntries() {
-  return JSON.parse(localStorage.getItem('cj_calendar_entries') || '[]')
-}
-function saveEntries(list) {
-  localStorage.setItem('cj_calendar_entries', JSON.stringify(list))
-}
-function loadIdeas() {
-  return JSON.parse(localStorage.getItem('cj_ideas') || '[]')
-}
-
 // Build { 'YYYY-MM-DD': [enrichedEntry, …] }
 function buildDayMap(entries, ideas) {
   const byId = Object.fromEntries(ideas.map(i => [i.id, i]))
   const map = {}
   for (const e of entries) {
-    const idea = byId[e.ideaId]
+    const idea = byId[e.idea_id]
     const enriched = {
       ...e,
       body:         idea?.body        ?? e.label ?? '',
@@ -72,12 +68,19 @@ function Toast({ visible, message, accent = '#6BFFB8' }) {
 }
 
 // ── Post chip ─────────────────────────────────────────────────────────────────
-function PostChip({ entry, isSelected, onClick }) {
+function PostChip({ entry, isSelected, isDragging, onClick, onDragStart, onDragEnd }) {
   const { color, text } = cfg(entry.content_type)
   const posted = !!entry.posted
   return (
     <button
+      draggable
       onClick={onClick}
+      onDragStart={e => {
+        e.dataTransfer.effectAllowed = 'move'
+        e.dataTransfer.setData('text/plain', entry.id)
+        onDragStart(entry.id)
+      }}
+      onDragEnd={onDragEnd}
       style={{
         display: 'block', width: '100%',
         background: posted ? '#f0ede8' : color + '22',
@@ -85,12 +88,14 @@ function PostChip({ entry, isSelected, onClick }) {
         borderRadius: 6, padding: '3px 7px',
         fontFamily: 'DM Sans, sans-serif', fontSize: 11, fontWeight: 600,
         color: posted ? '#ccc' : text,
-        cursor: 'pointer', textAlign: 'left',
+        cursor: isDragging ? 'grabbing' : 'grab',
+        textAlign: 'left',
         overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
         textDecoration: posted ? 'line-through' : 'none',
         outline: isSelected ? `2px solid ${color}` : 'none',
         outlineOffset: 1,
-        transition: 'all 0.12s',
+        opacity: isDragging ? 0.35 : 1,
+        transition: 'opacity 0.12s',
       }}
     >
       {(entry.body ?? entry.label ?? '').slice(0, 32) || '—'}
@@ -99,22 +104,44 @@ function PostChip({ entry, isSelected, onClick }) {
 }
 
 // ── Day cell ──────────────────────────────────────────────────────────────────
-function DayCell({ day, dateStr, dayEntries, isToday, isCurrentMonth, selectedId, onChipClick }) {
-  const isFull    = dayEntries.length >= 2
-  const visible   = dayEntries.slice(0, 2)
-  const overflow  = dayEntries.length - 2
+function DayCell({
+  day, dateStr, dayEntries, isToday, isCurrentMonth,
+  selectedId, draggingId,
+  isDragOver, isDragOverFull,
+  onChipClick, onDragStart, onDragEnd, onDragOver, onDragLeave, onDrop,
+}) {
+  const isFull   = dayEntries.length >= 2
+  const visible  = dayEntries.slice(0, 2)
+  const overflow = dayEntries.length - 2
+
+  let borderColor = isToday ? '#8B5CF6' : '#e8e5e0'
+  let bg          = isToday ? '#8B5CF60d' : isCurrentMonth ? '#fff' : '#FAFAF7'
+  let boxShadow   = 'none'
+
+  if (isDragOver) {
+    borderColor = isDragOverFull ? '#FB923C' : '#8B5CF6'
+    bg          = isDragOverFull ? '#FB923C08' : '#8B5CF608'
+    boxShadow   = `0 0 0 2px ${isDragOverFull ? '#FB923C' : '#8B5CF6'}`
+  }
 
   return (
-    <div style={{
-      minHeight: 88,
-      border: `1.5px solid ${isToday ? '#8B5CF6' : '#e8e5e0'}`,
-      borderRadius: 12,
-      background: isToday ? '#8B5CF60d' : isCurrentMonth ? '#fff' : '#FAFAF7',
-      padding: '7px 7px 6px',
-      display: 'flex', flexDirection: 'column', gap: 3,
-      opacity: isCurrentMonth ? 1 : 0.38,
-      boxSizing: 'border-box',
-    }}>
+    <div
+      onDragOver={e => { e.preventDefault(); e.dataTransfer.dropEffect = 'move'; onDragOver(dateStr) }}
+      onDragLeave={onDragLeave}
+      onDrop={e => { e.preventDefault(); onDrop(dateStr) }}
+      style={{
+        minHeight: 88,
+        border: `1.5px solid ${borderColor}`,
+        borderRadius: 12,
+        background: bg,
+        boxShadow,
+        padding: '7px 7px 6px',
+        display: 'flex', flexDirection: 'column', gap: 3,
+        opacity: isCurrentMonth ? 1 : 0.38,
+        boxSizing: 'border-box',
+        transition: 'border-color 0.12s, background 0.12s, box-shadow 0.12s',
+      }}
+    >
       {/* Day number row */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 3 }}>
         <span style={{
@@ -127,7 +154,7 @@ function DayCell({ day, dateStr, dayEntries, isToday, isCurrentMonth, selectedId
           background: isToday ? '#8B5CF61a' : 'transparent',
         }}>{day}</span>
 
-        {isFull && (
+        {(isFull || (isDragOver && isDragOverFull)) && (
           <span style={{
             fontFamily: 'DM Sans, sans-serif', fontSize: 8, fontWeight: 700,
             color: '#FB923C', background: '#FB923C14',
@@ -144,7 +171,10 @@ function DayCell({ day, dateStr, dayEntries, isToday, isCurrentMonth, selectedId
           key={e.id}
           entry={e}
           isSelected={selectedId === e.id}
+          isDragging={draggingId === e.id}
           onClick={() => onChipClick(e)}
+          onDragStart={onDragStart}
+          onDragEnd={onDragEnd}
         />
       ))}
 
@@ -153,6 +183,17 @@ function DayCell({ day, dateStr, dayEntries, isToday, isCurrentMonth, selectedId
           fontFamily: 'DM Sans, sans-serif', fontSize: 9,
           color: '#bbb', paddingLeft: 4,
         }}>+{overflow} more</span>
+      )}
+
+      {/* Drop target hint when dragging over an empty spot */}
+      {isDragOver && visible.length === 0 && (
+        <div style={{
+          flex: 1, border: `1.5px dashed ${isDragOverFull ? '#FB923C' : '#8B5CF6'}`,
+          borderRadius: 6, display: 'flex', alignItems: 'center', justifyContent: 'center',
+          minHeight: 28,
+        }}>
+          <span style={{ fontFamily: 'DM Sans, sans-serif', fontSize: 10, color: isDragOverFull ? '#FB923C' : '#8B5CF6' }}>drop here</span>
+        </div>
       )}
     </div>
   )
@@ -169,7 +210,6 @@ function SidePanel({ entry, onClose, onTogglePosted, onRemove }) {
       setCopied(true)
       setTimeout(() => setCopied(false), 2000)
     }).catch(() => {
-      // fallback for browsers without clipboard API
       const el = document.createElement('textarea')
       el.value = entry.body || ''
       document.body.appendChild(el)
@@ -322,7 +362,7 @@ function SidePanel({ entry, onClose, onTogglePosted, onRemove }) {
 
         {/* Remove from calendar */}
         <button
-          onClick={() => onRemove(entry.id, entry.ideaId)}
+          onClick={() => onRemove(entry.id, entry.idea_id)}
           style={{
             background: 'transparent', color: '#FF6B6B',
             border: '2px solid #FF6B6B',
@@ -369,10 +409,21 @@ export default function Calendar() {
   const now = new Date()
   const [year,  setYear]  = useState(now.getFullYear())
   const [month, setMonth] = useState(now.getMonth())
-  const [entries, setEntries] = useState(loadEntries)
-  const [ideas,   setIdeas]   = useState(loadIdeas)
-  const [selectedId, setSelectedId] = useState(null)
+  const [entries, setEntries] = useState([])
+  const [ideas,   setIdeas]   = useState([])
+  const [isLoading, setIsLoading] = useState(true)
+  const [selectedId,  setSelectedId]  = useState(null)
+  const [dragOverDate, setDragOverDate] = useState(null)
   const [toast, setToast] = useState({ visible: false, message: '' })
+  const draggingId = useRef(null)
+
+  useEffect(() => {
+    Promise.all([getCalendarPosts(), getIdeas()]).then(([posts, ideasData]) => {
+      setEntries(posts)
+      setIdeas(ideasData)
+      setIsLoading(false)
+    })
+  }, [])
 
   function showToast(msg) {
     setToast({ visible: true, message: msg })
@@ -437,23 +488,69 @@ export default function Calendar() {
     setSelectedId(prev => prev === entry.id ? null : entry.id)
   }
 
-  function handleTogglePosted(entryId) {
-    const next = entries.map(e => e.id === entryId ? { ...e, posted: !e.posted } : e)
+  // ── Drag handlers ────────────────────────────────────────────────────────────
+  function handleDragStart(entryId) {
+    draggingId.current = entryId
+  }
+
+  function handleDragEnd() {
+    draggingId.current = null
+    setDragOverDate(null)
+  }
+
+  function handleDragOver(dateStr) {
+    if (dragOverDate !== dateStr) setDragOverDate(dateStr)
+  }
+
+  function handleDrop(targetDate) {
+    const id = draggingId.current
+    draggingId.current = null
+    setDragOverDate(null)
+
+    if (!id) return
+    const entry = entries.find(e => e.id === id)
+    if (!entry || entry.date === targetDate) return
+
+    // Count posts already on the target day (excluding the chip being moved)
+    const existing = (dayMap[targetDate] ?? []).filter(e => e.id !== id)
+
+    // Optimistic update
+    const next = entries.map(e => e.id === id ? { ...e, date: targetDate } : e)
     setEntries(next)
-    saveEntries(next)
+
+    // Supabase updates
+    updateCalendarPost(id, { date: targetDate })
+    updateIdea(entry.idea_id, { scheduled_date: targetDate })
+
+    // Keep local ideas state in sync
+    setIdeas(prev => prev.map(i =>
+      i.id === entry.idea_id ? { ...i, scheduled_date: targetDate } : i
+    ))
+
+    if (existing.length >= 2) {
+      showToast('moved! that day is pretty packed now 🗓')
+    } else {
+      const label = new Date(targetDate + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
+      showToast(`moved to ${label}`)
+    }
+  }
+
+  function handleTogglePosted(entryId) {
+    const entry = entries.find(e => e.id === entryId)
+    const newPosted = !entry.posted
+    setEntries(prev => prev.map(e => e.id === entryId ? { ...e, posted: newPosted } : e))
+    updateCalendarPost(entryId, { posted: newPosted })
   }
 
   function handleRemove(entryId, ideaId) {
-    const next = entries.filter(e => e.id !== entryId)
-    setEntries(next)
-    saveEntries(next)
+    setEntries(prev => prev.filter(e => e.id !== entryId))
+    deleteCalendarPost(entryId)
 
-    // Clear scheduledDate on the linked idea
-    const updatedIdeas = ideas.map(i =>
-      i.id === ideaId ? { ...i, scheduledDate: null } : i
-    )
-    setIdeas(updatedIdeas)
-    localStorage.setItem('cj_ideas', JSON.stringify(updatedIdeas))
+    // Clear scheduled_date on the linked idea
+    setIdeas(prev => prev.map(i =>
+      i.id === ideaId ? { ...i, scheduled_date: null } : i
+    ))
+    updateIdea(ideaId, { scheduled_date: null })
 
     setSelectedId(null)
     showToast('removed from calendar')
@@ -473,8 +570,9 @@ export default function Calendar() {
             Calendar
           </h1>
           <p style={{ fontFamily: 'DM Sans, sans-serif', color: '#888', margin: 0, fontSize: 14 }}>
-            {scheduledCount} scheduled
-            {postedCount > 0 && ` · ${postedCount} posted`}
+            {isLoading
+              ? 'loading...'
+              : `${scheduledCount} scheduled${postedCount > 0 ? ` · ${postedCount} posted` : ''}`}
           </p>
         </div>
 
@@ -513,80 +611,95 @@ export default function Calendar() {
         </div>
       </div>
 
-      {/* Empty state */}
-      {entries.length === 0 && (
-        <div style={{
-          border: '2px dashed #d0cdc8', borderRadius: 16,
-          padding: '28px 24px', marginBottom: 24, maxWidth: 480,
-          background: '#fff44',
-        }}>
-          <p style={{
-            fontFamily: 'DM Sans, sans-serif', fontSize: 13, color: '#bbb',
-            margin: 0, lineHeight: 1.6,
+      <div style={{ opacity: isLoading ? 0.5 : 1, transition: 'opacity 0.2s' }}>
+        {/* Empty state */}
+        {!isLoading && entries.length === 0 && (
+          <div style={{
+            border: '2px dashed #d0cdc8', borderRadius: 16,
+            padding: '28px 24px', marginBottom: 24, maxWidth: 480,
           }}>
-            no posts scheduled yet — go to <strong style={{ color: '#8B5CF6' }}>Idea Bank</strong> and hit "add to calendar" on any idea.
-          </p>
-        </div>
-      )}
-
-      {/* Main layout */}
-      <div style={{ display: 'flex', gap: 20, alignItems: 'flex-start' }}>
-
-        {/* Calendar grid */}
-        <div style={{ flex: 1, minWidth: 0 }}>
-
-          {/* Weekday headers */}
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gap: 5, marginBottom: 5 }}>
-            {WEEKDAYS.map(d => (
-              <div key={d} style={{
-                textAlign: 'center',
-                fontFamily: 'Syne, sans-serif', fontSize: 10, fontWeight: 700,
-                color: '#aaa', padding: '4px 0',
-                textTransform: 'uppercase', letterSpacing: '0.6px',
-              }}>{d}</div>
-            ))}
+            <p style={{
+              fontFamily: 'DM Sans, sans-serif', fontSize: 13, color: '#bbb',
+              margin: 0, lineHeight: 1.6,
+            }}>
+              no posts scheduled yet — go to <strong style={{ color: '#8B5CF6' }}>Idea Bank</strong> and hit "add to calendar" on any idea.
+            </p>
           </div>
-
-          {/* Day cells */}
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gap: 5 }}>
-            {Array.from({ length: totalCells }, (_, i) => {
-              const { day, dateStr, isCurrent } = cellInfo(i)
-              const dayEntries = dayMap[dateStr] ?? []
-              return (
-                <DayCell
-                  key={dateStr + i}
-                  day={day}
-                  dateStr={dateStr}
-                  dayEntries={dayEntries}
-                  isToday={dateStr === TODAY_STR}
-                  isCurrentMonth={isCurrent}
-                  selectedId={enrichedSelected?.id ?? null}
-                  onChipClick={handleChipClick}
-                />
-              )
-            })}
-          </div>
-
-          {/* Legend */}
-          <div style={{ display: 'flex', flexWrap: 'wrap', gap: '10px 18px', marginTop: 20 }}>
-            {Object.entries(TYPE_CONFIG).map(([type, { color, text, label }]) => (
-              <div key={type} style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                <div style={{ width: 10, height: 10, borderRadius: 3, background: color + '44', border: `1.5px solid ${color}` }} />
-                <span style={{ fontFamily: 'DM Sans, sans-serif', fontSize: 11, color: '#aaa' }}>{label}</span>
-              </div>
-            ))}
-          </div>
-        </div>
-
-        {/* Side panel */}
-        {enrichedSelected && (
-          <SidePanel
-            entry={enrichedSelected}
-            onClose={() => setSelectedId(null)}
-            onTogglePosted={handleTogglePosted}
-            onRemove={handleRemove}
-          />
         )}
+
+        {/* Main layout */}
+        <div style={{ display: 'flex', gap: 20, alignItems: 'flex-start' }}>
+
+          {/* Calendar grid */}
+          <div style={{ flex: 1, minWidth: 0 }}>
+
+            {/* Weekday headers */}
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gap: 5, marginBottom: 5 }}>
+              {WEEKDAYS.map(d => (
+                <div key={d} style={{
+                  textAlign: 'center',
+                  fontFamily: 'Syne, sans-serif', fontSize: 10, fontWeight: 700,
+                  color: '#aaa', padding: '4px 0',
+                  textTransform: 'uppercase', letterSpacing: '0.6px',
+                }}>{d}</div>
+              ))}
+            </div>
+
+            {/* Day cells */}
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gap: 5 }}>
+              {Array.from({ length: totalCells }, (_, i) => {
+                const { day, dateStr, isCurrent } = cellInfo(i)
+                const dayEntries = dayMap[dateStr] ?? []
+                const targetCount = draggingId.current
+                  ? dayEntries.filter(e => e.id !== draggingId.current).length
+                  : dayEntries.length
+                const isDragOver     = dragOverDate === dateStr
+                const isDragOverFull = isDragOver && targetCount >= 2
+
+                return (
+                  <DayCell
+                    key={dateStr + i}
+                    day={day}
+                    dateStr={dateStr}
+                    dayEntries={dayEntries}
+                    isToday={dateStr === TODAY_STR}
+                    isCurrentMonth={isCurrent}
+                    selectedId={enrichedSelected?.id ?? null}
+                    draggingId={draggingId.current}
+                    isDragOver={isDragOver}
+                    isDragOverFull={isDragOverFull}
+                    onChipClick={handleChipClick}
+                    onDragStart={handleDragStart}
+                    onDragEnd={handleDragEnd}
+                    onDragOver={handleDragOver}
+                    onDragLeave={() => setDragOverDate(null)}
+                    onDrop={handleDrop}
+                  />
+                )
+              })}
+            </div>
+
+            {/* Legend */}
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '10px 18px', marginTop: 20 }}>
+              {Object.entries(TYPE_CONFIG).map(([type, { color, label }]) => (
+                <div key={type} style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                  <div style={{ width: 10, height: 10, borderRadius: 3, background: color + '44', border: `1.5px solid ${color}` }} />
+                  <span style={{ fontFamily: 'DM Sans, sans-serif', fontSize: 11, color: '#aaa' }}>{label}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* Side panel */}
+          {enrichedSelected && (
+            <SidePanel
+              entry={enrichedSelected}
+              onClose={() => setSelectedId(null)}
+              onTogglePosted={handleTogglePosted}
+              onRemove={handleRemove}
+            />
+          )}
+        </div>
       </div>
     </div>
   )

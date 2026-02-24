@@ -1,4 +1,5 @@
 import { useState, useRef } from 'react'
+import { getIdeas, getCalendarPosts, getAllJournalEntries } from './db.js'
 
 const DEFAULT_TAGS = ['CT', 'AI', 'vibecoding', 'design', 'motion graphics', 'video content']
 
@@ -91,6 +92,7 @@ export default function Settings() {
   const [tagInput, setTagInput] = useState('')
   const [showApiKey, setShowApiKey] = useState(false)
   const [toastVisible, setToastVisible] = useState(false)
+  const [exporting, setExporting] = useState(false)
 
   const toastTimer = useRef(null)
   const saveTimer = useRef(null)
@@ -101,19 +103,22 @@ export default function Settings() {
     toastTimer.current = setTimeout(() => setToastVisible(false), 2500)
   }
 
-  function exportData() {
-    const data = { exportedAt: new Date().toISOString(), settings: {}, ideas: [], journalEntries: {}, calendarEntries: [], trendingResults: [] }
+  async function exportData() {
+    setExporting(true)
+    const [ideas, calendar, journal] = await Promise.all([
+      getIdeas(), getCalendarPosts(), getAllJournalEntries()
+    ])
 
-    data.settings = { topics: JSON.parse(localStorage.getItem('cj_topics') || '[]'), tone: localStorage.getItem('cj_tone') || '' }
-    data.ideas = JSON.parse(localStorage.getItem('cj_ideas') || '[]')
-    data.calendarEntries = JSON.parse(localStorage.getItem('cj_calendar_entries') || '[]')
-    data.trendingResults = JSON.parse(localStorage.getItem('cj_trending_results') || '[]')
-
-    for (let i = 0; i < localStorage.length; i++) {
-      const key = localStorage.key(i)
-      if (key && key.startsWith('cj_journal_')) {
-        data.journalEntries[key] = localStorage.getItem(key)
-      }
+    const data = {
+      exportedAt: new Date().toISOString(),
+      settings: {
+        topics: JSON.parse(localStorage.getItem('cj_topics') || '[]'),
+        tone: localStorage.getItem('cj_tone') || '',
+      },
+      ideas,
+      calendarEntries: calendar,
+      journalEntries: journal,
+      trendingResults: JSON.parse(localStorage.getItem('cj_trending_results') || '[]'),
     }
 
     const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' })
@@ -123,6 +128,7 @@ export default function Settings() {
     a.download = `content-journal-export-${new Date().toISOString().slice(0, 10)}.json`
     a.click()
     URL.revokeObjectURL(url)
+    setExporting(false)
   }
 
   function persistAll(newApiKey, newTopics, newTone) {
@@ -331,20 +337,22 @@ export default function Settings() {
         <Section label="export data" hint="downloads all your ideas, journal entries, calendar, and trending results as a JSON file">
           <button
             onClick={exportData}
+            disabled={exporting}
             style={{
               display: 'inline-flex',
               alignItems: 'center',
               gap: '8px',
-              background: '#1a1a2e',
-              color: '#fff',
+              background: exporting ? '#d4d1cc' : '#1a1a2e',
+              color: exporting ? '#888' : '#fff',
               border: '2px solid #1a1a2e',
               borderRadius: '12px',
               padding: '11px 20px',
               fontFamily: 'Syne, sans-serif',
               fontWeight: 700,
               fontSize: '14px',
-              cursor: 'pointer',
-              boxShadow: '3px 3px 0px #8B5CF6',
+              cursor: exporting ? 'not-allowed' : 'pointer',
+              boxShadow: exporting ? 'none' : '3px 3px 0px #8B5CF6',
+              transition: 'all 0.15s',
             }}
           >
             <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
@@ -352,7 +360,7 @@ export default function Settings() {
               <polyline points="7 10 12 15 17 10"/>
               <line x1="12" y1="15" x2="12" y2="3"/>
             </svg>
-            download backup
+            {exporting ? 'exporting...' : 'download backup'}
           </button>
         </Section>
 
