@@ -115,9 +115,9 @@ export default function App() {
     localStorage.setItem('cj_active_view', view)
   }
 
-  if (authLoading) return <LoadingScreen />
+  if (authLoading || profile === undefined) return <LoadingScreen />
   if (!user) return <Login />
-  if (!profile?.onboarding_complete) return <Onboarding />
+  if (!profile || !profile.onboarding_complete) return <Onboarding />
 
   const ActiveView = VIEWS[active]
 

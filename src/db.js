@@ -35,7 +35,7 @@ export async function upsertJournalEntry(date, fields, userId) {
   } else {
     const { error } = await supabase
       .from('journal_entries')
-      .insert({ date, user_id: userId, ...fields })
+      .insert({ entry_text: '', date, user_id: userId, ...fields })
     if (error) console.error('upsertJournalEntry insert:', error)
   }
 }

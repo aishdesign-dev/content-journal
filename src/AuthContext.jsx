@@ -38,6 +38,7 @@ export function AuthProvider({ children }) {
       const u = session?.user ?? null
       setUser(u)
       if (u) {
+        setProfile(undefined) // show loading screen while profile fetches, not Onboarding
         await fetchProfile(u.id)
       } else {
         setProfile(null)
