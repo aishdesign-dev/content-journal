@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from 'react'
 import { getJournalEntry, upsertJournalEntry, insertIdea } from './db.js'
+import { useAuth } from './AuthContext.jsx'
 
 const TODAY_KEY = new Date().toISOString().slice(0, 10) // YYYY-MM-DD
 
@@ -196,20 +197,23 @@ function ErrorPill({ message }) {
 
 // ── Main component ────────────────────────────────────────────────────────────
 export default function Journal() {
-  const [entry, setEntry] = useState('')
-  const [ideas, setIdeas] = useState([])
-  const [saved, setSaved] = useState({})
+  const { user, profile } = useAuth()
+
+  const [entry, setEntry]     = useState('')
+  const [ideas, setIdeas]     = useState([])
+  const [saved, setSaved]     = useState({})
   const [isLoading, setIsLoading] = useState(true)
   const [loading, setLoading] = useState(false)
-  const [error, setError] = useState(null)
-  const [toast, setToast] = useState({ visible: false, message: '' })
+  const [error, setError]     = useState(null)
+  const [toast, setToast]     = useState({ visible: false, message: '' })
 
   // Skip the first debounce save triggered by loading data from DB
   const skipNextSave = useRef(true)
 
   // Load today's entry on mount
   useEffect(() => {
-    getJournalEntry(TODAY_KEY).then(row => {
+    if (!user) return
+    getJournalEntry(TODAY_KEY, user.id).then(row => {
       if (row) {
         skipNextSave.current = true
         setEntry(row.entry_text || '')
@@ -218,19 +222,19 @@ export default function Journal() {
       }
       setIsLoading(false)
     })
-  }, [])
+  }, [user])
 
   // Debounced persist of entry text
   useEffect(() => {
-    if (skipNextSave.current) {
+    if (!user || skipNextSave.current) {
       skipNextSave.current = false
       return
     }
     const timer = setTimeout(() => {
-      upsertJournalEntry(TODAY_KEY, { entry_text: entry })
+      upsertJournalEntry(TODAY_KEY, { entry_text: entry }, user.id)
     }, 800)
     return () => clearTimeout(timer)
-  }, [entry])
+  }, [entry, user])
 
   function showToast(message) {
     setToast({ visible: true, message })
@@ -238,8 +242,8 @@ export default function Journal() {
   }
 
   async function generateIdeas() {
-    const apiKey = (localStorage.getItem('cj_apiKey') || '').trim()
-    const toneGuide = (localStorage.getItem('cj_tone') || '').trim()
+    const apiKey   = (profile?.api_key   || '').trim()
+    const toneGuide = (profile?.tone_guide || '').trim()
 
     if (!apiKey) {
       setError('no api key found — add it in settings first')
@@ -255,19 +259,17 @@ export default function Journal() {
     setIdeas([])
     setSaved({})
 
+    const topics = profile?.topics?.length ? profile.topics.join(', ') : ''
     const userMessage =
       `here is what happened today: ${entry.trim()}.\n\n` +
       `Read everything carefully and extract as many distinct tweet ideas as possible — minimum 5, more if the content supports it. Cover every interesting angle, story, insight, or moment.\n\n` +
       `Mix up the formats. include:\n` +
       `- raw honest moments from the day (what i built, learned, struggled with)\n` +
-      `- at least 2 meme-style posts with this energy: "[big chaotic thing happening in AI/tech/crypto/world] and meanwhile i'm just here [my small relatable thing]" — self-aware, funny, lowercase\n` +
-      `- the contrast between big world chaos and my quiet grind from india at weird hours\n` +
-      `- reactive takes on anything wild mentioned in my day\n` +
-      `- punchy one-liners that feel like texting a friend, not a linkedin post\n\n` +
-      `examples of the vibe i want:\n` +
-      `"AI is getting wild rn and i can't keep up 😭 gemini 3.1 dropped, spacex merging with xAI, apple rebuilding siri. meanwhile i'm just here vibe coding crypto dashboards at 2am"\n` +
-      `"nobody talks about the 2am india timezone grind. everything ships while the rest of the world sleeps"\n\n` +
-      `For each idea return JSON with: post_copy, image_idea, content_type.\n` +
+      `- at least 2 meme-style posts with relatable, self-aware energy\n` +
+      `- punchy one-liners that feel like texting a friend, not a linkedin post\n` +
+      `- reactive takes on anything interesting mentioned in my day\n` +
+      (topics ? `- content that connects to my topics: ${topics}\n` : '') +
+      `\nFor each idea return JSON with: post_copy, image_idea, content_type.\n` +
       `content_type must be one of: building, learning, design, video, life, ct-ai, fun.\n` +
       `Respond with valid JSON array only, no markdown.`
 
@@ -302,7 +304,7 @@ export default function Journal() {
       const newIdeas = Array.isArray(parsed) ? parsed : [parsed]
       setIdeas(newIdeas)
       setSaved({})
-      upsertJournalEntry(TODAY_KEY, { generated_ideas: newIdeas, saved_indices: {} })
+      upsertJournalEntry(TODAY_KEY, { generated_ideas: newIdeas, saved_indices: {} }, user.id)
     } catch (e) {
       if (e instanceof SyntaxError) {
         setError('got a weird response — try again?')
@@ -330,10 +332,10 @@ export default function Journal() {
       from_date: TODAY_KEY,
     }
     try {
-      await insertIdea(newIdea)
+      await insertIdea(newIdea, user.id)
       const nextSaved = { ...saved, [idx]: true }
       setSaved(nextSaved)
-      upsertJournalEntry(TODAY_KEY, { saved_indices: nextSaved })
+      upsertJournalEntry(TODAY_KEY, { saved_indices: nextSaved }, user.id)
       showToast('saved to idea bank!')
     } catch {
       setError('failed to save — check your connection and try again')

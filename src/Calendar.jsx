@@ -6,6 +6,7 @@ import {
   deleteCalendarPost,
   updateIdea,
 } from './db.js'
+import { useAuth } from './AuthContext.jsx'
 
 // ── Constants ─────────────────────────────────────────────────────────────────
 const TYPE_CONFIG = {
@@ -27,7 +28,6 @@ const MONTHS   = ['January','February','March','April','May','June',
 
 const TODAY_STR = new Date().toISOString().slice(0, 10)
 
-// Build { 'YYYY-MM-DD': [enrichedEntry, …] }
 function buildDayMap(entries, ideas) {
   const byId = Object.fromEntries(ideas.map(i => [i.id, i]))
   const map = {}
@@ -142,7 +142,6 @@ function DayCell({
         transition: 'border-color 0.12s, background 0.12s, box-shadow 0.12s',
       }}
     >
-      {/* Day number row */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 3 }}>
         <span style={{
           fontFamily: isToday ? 'Syne, sans-serif' : 'DM Sans, sans-serif',
@@ -165,7 +164,6 @@ function DayCell({
         )}
       </div>
 
-      {/* Chips */}
       {visible.map(e => (
         <PostChip
           key={e.id}
@@ -179,13 +177,11 @@ function DayCell({
       ))}
 
       {overflow > 0 && (
-        <span style={{
-          fontFamily: 'DM Sans, sans-serif', fontSize: 9,
-          color: '#bbb', paddingLeft: 4,
-        }}>+{overflow} more</span>
+        <span style={{ fontFamily: 'DM Sans, sans-serif', fontSize: 9, color: '#bbb', paddingLeft: 4 }}>
+          +{overflow} more
+        </span>
       )}
 
-      {/* Drop target hint when dragging over an empty spot */}
       {isDragOver && visible.length === 0 && (
         <div style={{
           flex: 1, border: `1.5px dashed ${isDragOverFull ? '#FB923C' : '#8B5CF6'}`,
@@ -236,7 +232,6 @@ function SidePanel({ entry, onClose, onTogglePosted, onRemove }) {
       position: 'sticky', top: 0,
       height: 'fit-content',
     }}>
-      {/* Header */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14 }}>
         <span style={{
           background: color + '1a', border: `2px solid ${color}`,
@@ -256,12 +251,10 @@ function SidePanel({ entry, onClose, onTogglePosted, onRemove }) {
         </button>
       </div>
 
-      {/* Date */}
       <p style={{ fontFamily: 'DM Sans, sans-serif', fontSize: 12, color: '#aaa', margin: '0 0 14px' }}>
         {dateLabel}
       </p>
 
-      {/* Post copy */}
       <div style={{
         background: '#FAFAF7', border: '2px solid #1a1a2e',
         borderRadius: 12, padding: '14px 16px', marginBottom: 10,
@@ -274,7 +267,6 @@ function SidePanel({ entry, onClose, onTogglePosted, onRemove }) {
         }}>{entry.body || '—'}</p>
       </div>
 
-      {/* Image idea */}
       {entry.image_idea && (
         <div style={{
           background: '#FAFAF7', border: '1.5px dashed #d0cdc8',
@@ -293,10 +285,7 @@ function SidePanel({ entry, onClose, onTogglePosted, onRemove }) {
         </div>
       )}
 
-      {/* Actions */}
       <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-
-        {/* Copy post */}
         <button
           onClick={copyPost}
           style={{
@@ -328,7 +317,6 @@ function SidePanel({ entry, onClose, onTogglePosted, onRemove }) {
           )}
         </button>
 
-        {/* Mark as posted */}
         <button
           onClick={() => onTogglePosted(entry.id)}
           style={{
@@ -360,7 +348,6 @@ function SidePanel({ entry, onClose, onTogglePosted, onRemove }) {
           )}
         </button>
 
-        {/* Remove from calendar */}
         <button
           onClick={() => onRemove(entry.id, entry.idea_id)}
           style={{
@@ -406,6 +393,8 @@ function NavBtn({ onClick, children }) {
 
 // ── Main component ────────────────────────────────────────────────────────────
 export default function Calendar() {
+  const { user } = useAuth()
+
   const now = new Date()
   const [year,  setYear]  = useState(now.getFullYear())
   const [month, setMonth] = useState(now.getMonth())
@@ -418,19 +407,19 @@ export default function Calendar() {
   const draggingId = useRef(null)
 
   useEffect(() => {
-    Promise.all([getCalendarPosts(), getIdeas()]).then(([posts, ideasData]) => {
+    if (!user) return
+    Promise.all([getCalendarPosts(user.id), getIdeas(user.id)]).then(([posts, ideasData]) => {
       setEntries(posts)
       setIdeas(ideasData)
       setIsLoading(false)
     })
-  }, [])
+  }, [user])
 
   function showToast(msg) {
     setToast({ visible: true, message: msg })
     setTimeout(() => setToast(t => ({ ...t, visible: false })), 2200)
   }
 
-  // Month navigation
   function prevMonth() {
     if (month === 0) { setYear(y => y - 1); setMonth(11) }
     else setMonth(m => m - 1)
@@ -444,7 +433,6 @@ export default function Calendar() {
     setMonth(now.getMonth())
   }
 
-  // Grid math
   const firstDayOfWeek  = new Date(year, month, 1).getDay()
   const daysInMonth     = new Date(year, month + 1, 0).getDate()
   const daysInPrevMonth = new Date(year, month, 0).getDate()
@@ -474,7 +462,6 @@ export default function Calendar() {
 
   const dayMap = buildDayMap(entries, ideas)
 
-  // Resolve the full enriched selected entry from current state
   const enrichedSelected = (() => {
     if (!selectedId) return null
     for (const list of Object.values(dayMap)) {
@@ -488,7 +475,6 @@ export default function Calendar() {
     setSelectedId(prev => prev === entry.id ? null : entry.id)
   }
 
-  // ── Drag handlers ────────────────────────────────────────────────────────────
   function handleDragStart(entryId) {
     draggingId.current = entryId
   }
@@ -511,18 +497,14 @@ export default function Calendar() {
     const entry = entries.find(e => e.id === id)
     if (!entry || entry.date === targetDate) return
 
-    // Count posts already on the target day (excluding the chip being moved)
     const existing = (dayMap[targetDate] ?? []).filter(e => e.id !== id)
 
-    // Optimistic update
     const next = entries.map(e => e.id === id ? { ...e, date: targetDate } : e)
     setEntries(next)
 
-    // Supabase updates
-    updateCalendarPost(id, { date: targetDate })
-    updateIdea(entry.idea_id, { scheduled_date: targetDate })
+    updateCalendarPost(id, { date: targetDate }, user?.id)
+    updateIdea(entry.idea_id, { scheduled_date: targetDate }, user?.id)
 
-    // Keep local ideas state in sync
     setIdeas(prev => prev.map(i =>
       i.id === entry.idea_id ? { ...i, scheduled_date: targetDate } : i
     ))
@@ -539,18 +521,17 @@ export default function Calendar() {
     const entry = entries.find(e => e.id === entryId)
     const newPosted = !entry.posted
     setEntries(prev => prev.map(e => e.id === entryId ? { ...e, posted: newPosted } : e))
-    updateCalendarPost(entryId, { posted: newPosted })
+    updateCalendarPost(entryId, { posted: newPosted }, user?.id)
   }
 
   function handleRemove(entryId, ideaId) {
     setEntries(prev => prev.filter(e => e.id !== entryId))
-    deleteCalendarPost(entryId)
+    deleteCalendarPost(entryId, user?.id)
 
-    // Clear scheduled_date on the linked idea
     setIdeas(prev => prev.map(i =>
       i.id === ideaId ? { ...i, scheduled_date: null } : i
     ))
-    updateIdea(ideaId, { scheduled_date: null })
+    updateIdea(ideaId, { scheduled_date: null }, user?.id)
 
     setSelectedId(null)
     showToast('removed from calendar')
@@ -563,7 +544,6 @@ export default function Calendar() {
     <div>
       <Toast visible={toast.visible} message={toast.message} />
 
-      {/* Header */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 28 }}>
         <div>
           <h1 style={{ fontFamily: 'Syne, sans-serif', fontSize: 28, fontWeight: 700, color: '#1a1a2e', margin: '0 0 4px' }}>
@@ -576,7 +556,6 @@ export default function Calendar() {
           </p>
         </div>
 
-        {/* Month nav */}
         <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
           <NavBtn onClick={prevMonth}>
             <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
@@ -595,7 +574,6 @@ export default function Calendar() {
             </svg>
           </NavBtn>
 
-          {/* Today button */}
           {(year !== now.getFullYear() || month !== now.getMonth()) && (
             <button
               onClick={goToday}
@@ -612,7 +590,6 @@ export default function Calendar() {
       </div>
 
       <div style={{ opacity: isLoading ? 0.5 : 1, transition: 'opacity 0.2s' }}>
-        {/* Empty state */}
         {!isLoading && entries.length === 0 && (
           <div style={{
             border: '2px dashed #d0cdc8', borderRadius: 16,
@@ -627,13 +604,8 @@ export default function Calendar() {
           </div>
         )}
 
-        {/* Main layout */}
         <div style={{ display: 'flex', gap: 20, alignItems: 'flex-start' }}>
-
-          {/* Calendar grid */}
           <div style={{ flex: 1, minWidth: 0 }}>
-
-            {/* Weekday headers */}
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gap: 5, marginBottom: 5 }}>
               {WEEKDAYS.map(d => (
                 <div key={d} style={{
@@ -645,7 +617,6 @@ export default function Calendar() {
               ))}
             </div>
 
-            {/* Day cells */}
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gap: 5 }}>
               {Array.from({ length: totalCells }, (_, i) => {
                 const { day, dateStr, isCurrent } = cellInfo(i)
@@ -679,7 +650,6 @@ export default function Calendar() {
               })}
             </div>
 
-            {/* Legend */}
             <div style={{ display: 'flex', flexWrap: 'wrap', gap: '10px 18px', marginTop: 20 }}>
               {Object.entries(TYPE_CONFIG).map(([type, { color, label }]) => (
                 <div key={type} style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
@@ -690,7 +660,6 @@ export default function Calendar() {
             </div>
           </div>
 
-          {/* Side panel */}
           {enrichedSelected && (
             <SidePanel
               entry={enrichedSelected}

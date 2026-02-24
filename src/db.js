@@ -2,27 +2,45 @@ import { supabase } from './supabase.js'
 
 // ── Journal entries ────────────────────────────────────────────────────────────
 
-export async function getJournalEntry(date) {
+export async function getJournalEntry(date, userId) {
   const { data, error } = await supabase
     .from('journal_entries')
     .select('*')
     .eq('date', date)
+    .eq('user_id', userId)
     .maybeSingle()
   if (error) console.error('getJournalEntry:', error)
   return data
 }
 
-export async function upsertJournalEntry(date, fields) {
-  const { error } = await supabase
+export async function upsertJournalEntry(date, fields, userId) {
+  const { data: existing } = await supabase
     .from('journal_entries')
-    .upsert({ date, ...fields, updated_at: new Date().toISOString() })
-  if (error) console.error('upsertJournalEntry:', error)
+    .select('id')
+    .eq('date', date)
+    .eq('user_id', userId)
+    .maybeSingle()
+
+  if (existing) {
+    const { error } = await supabase
+      .from('journal_entries')
+      .update({ ...fields, updated_at: new Date().toISOString() })
+      .eq('date', date)
+      .eq('user_id', userId)
+    if (error) console.error('upsertJournalEntry update:', error)
+  } else {
+    const { error } = await supabase
+      .from('journal_entries')
+      .insert({ date, user_id: userId, ...fields, updated_at: new Date().toISOString() })
+    if (error) console.error('upsertJournalEntry insert:', error)
+  }
 }
 
-export async function getAllJournalEntries() {
+export async function getAllJournalEntries(userId) {
   const { data, error } = await supabase
     .from('journal_entries')
     .select('*')
+    .eq('user_id', userId)
     .order('date', { ascending: false })
   if (error) console.error('getAllJournalEntries:', error)
   return data ?? []
@@ -30,49 +48,61 @@ export async function getAllJournalEntries() {
 
 // ── Ideas ─────────────────────────────────────────────────────────────────────
 
-export async function getIdeas() {
+export async function getIdeas(userId) {
   const { data, error } = await supabase
     .from('ideas')
     .select('*')
+    .eq('user_id', userId)
     .order('created_at', { ascending: false })
   if (error) console.error('getIdeas:', error)
   return data ?? []
 }
 
-export async function insertIdea(idea) {
-  const { error } = await supabase.from('ideas').insert(idea)
+export async function insertIdea(idea, userId) {
+  const { error } = await supabase.from('ideas').insert({ ...idea, user_id: userId })
   if (error) { console.error('insertIdea:', error); throw error }
 }
 
-export async function updateIdea(id, fields) {
-  const { error } = await supabase.from('ideas').update(fields).eq('id', id)
+export async function updateIdea(id, fields, userId) {
+  let q = supabase.from('ideas').update(fields).eq('id', id)
+  if (userId) q = q.eq('user_id', userId)
+  const { error } = await q
   if (error) console.error('updateIdea:', error)
 }
 
-export async function deleteIdea(id) {
-  const { error } = await supabase.from('ideas').delete().eq('id', id)
+export async function deleteIdea(id, userId) {
+  let q = supabase.from('ideas').delete().eq('id', id)
+  if (userId) q = q.eq('user_id', userId)
+  const { error } = await q
   if (error) console.error('deleteIdea:', error)
 }
 
 // ── Calendar posts ────────────────────────────────────────────────────────────
 
-export async function getCalendarPosts() {
-  const { data, error } = await supabase.from('calendar_posts').select('*')
+export async function getCalendarPosts(userId) {
+  const { data, error } = await supabase
+    .from('calendar_posts')
+    .select('*')
+    .eq('user_id', userId)
   if (error) console.error('getCalendarPosts:', error)
   return data ?? []
 }
 
-export async function insertCalendarPost(post) {
-  const { error } = await supabase.from('calendar_posts').insert(post)
+export async function insertCalendarPost(post, userId) {
+  const { error } = await supabase.from('calendar_posts').insert({ ...post, user_id: userId })
   if (error) console.error('insertCalendarPost:', error)
 }
 
-export async function updateCalendarPost(id, fields) {
-  const { error } = await supabase.from('calendar_posts').update(fields).eq('id', id)
+export async function updateCalendarPost(id, fields, userId) {
+  let q = supabase.from('calendar_posts').update(fields).eq('id', id)
+  if (userId) q = q.eq('user_id', userId)
+  const { error } = await q
   if (error) console.error('updateCalendarPost:', error)
 }
 
-export async function deleteCalendarPost(id) {
-  const { error } = await supabase.from('calendar_posts').delete().eq('id', id)
+export async function deleteCalendarPost(id, userId) {
+  let q = supabase.from('calendar_posts').delete().eq('id', id)
+  if (userId) q = q.eq('user_id', userId)
+  const { error } = await q
   if (error) console.error('deleteCalendarPost:', error)
 }

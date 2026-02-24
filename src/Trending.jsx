@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { insertIdea } from './db.js'
+import { useAuth } from './AuthContext.jsx'
 
 // ── Shared config ─────────────────────────────────────────────────────────────
 const TYPE_CONFIG = {
@@ -17,31 +18,6 @@ function cfg(type) {
 
 const TAG_PALETTE = ['#8B5CF6','#FF6B6B','#6BFFB8','#FFD93D','#38BDF8','#FB923C','#F472B6']
 const TAG_TEXT    = ['#6d35d9','#cc2222','#1a7a50','#9a7000','#0369a1','#9a3412','#9d174d']
-
-const DEFAULT_TOPICS = ['CT', 'AI', 'vibecoding', 'design', 'motion graphics', 'video content']
-
-function loadSettings() {
-  return {
-    apiKey:    (localStorage.getItem('cj_apiKey')  || '').trim(),
-    toneGuide: (localStorage.getItem('cj_tone')    || '').trim(),
-    topics:    JSON.parse(localStorage.getItem('cj_topics') || 'null') ?? DEFAULT_TOPICS,
-  }
-}
-
-async function saveIdeaToBank(idea, idx) {
-  await insertIdea({
-    id:           String(Date.now() + idx),
-    title:        (idea.post_copy || '').slice(0, 60),
-    body:         idea.post_copy  || '',
-    image_idea:   idea.image_idea || '',
-    status:       'Draft',
-    status_color: '#FFD93D',
-    content_type: idea.content_type,
-    source:       'trending',
-    trend_source: idea.trend_source,
-    saved_at:     new Date().toISOString(),
-  })
-}
 
 function formatTs(iso) {
   if (!iso) return null
@@ -121,7 +97,6 @@ function ResultCard({ idea, index, onSave, saved }) {
       boxShadow: '4px 4px 0px #e0ddd6',
       animation: `cj-fadeup 0.3s ease ${index * 0.07}s both`,
     }}>
-      {/* top row */}
       <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 14, flexWrap: 'wrap' }}>
         <span style={{
           background: color + '1a', border: `2px solid ${color}`,
@@ -198,13 +173,11 @@ function ResultCard({ idea, index, onSave, saved }) {
         </button>
       </div>
 
-      {/* post copy */}
       <p style={{
         fontFamily: 'DM Sans, sans-serif', fontSize: 15,
         color: '#1a1a2e', lineHeight: 1.75, margin: '0 0 14px',
       }}>{idea.post_copy}</p>
 
-      {/* image idea */}
       {idea.image_idea && (
         <div style={{
           background: '#FAFAF7', border: '1.5px dashed #d8d5d0',
@@ -226,7 +199,7 @@ function ResultCard({ idea, index, onSave, saved }) {
   )
 }
 
-// ── Loading animation dots ────────────────────────────────────────────────────
+// ── Loading animation ─────────────────────────────────────────────────────────
 function ResearchingState() {
   return (
     <div style={{
@@ -237,7 +210,6 @@ function ResearchingState() {
       borderRadius: 20, boxShadow: '4px 4px 0px #e0ddd6',
       maxWidth: 480,
     }}>
-      {/* Animated search icon */}
       <div style={{ position: 'relative', width: 56, height: 56 }}>
         <div style={{
           width: 56, height: 56, borderRadius: '50%',
@@ -270,20 +242,27 @@ function ResearchingState() {
 
 // ── Main component ────────────────────────────────────────────────────────────
 export default function Trending() {
+  const { user, profile } = useAuth()
+
+  // Namespace trending cache by user ID to keep results isolated
+  const resultsKey = user ? `cj_trending_results_${user.id}` : 'cj_trending_results'
+  const lastKey    = user ? `cj_trending_last_${user.id}`    : 'cj_trending_last'
+
   const [results, setResults] = useState(() => {
-    const saved = localStorage.getItem('cj_trending_results')
+    const saved = localStorage.getItem(resultsKey)
     return saved ? JSON.parse(saved) : []
   })
   const [lastResearched, setLastResearched] = useState(
-    () => localStorage.getItem('cj_trending_last') || null
+    () => localStorage.getItem(lastKey) || null
   )
-  const [loading,  setLoading]  = useState(false)
-  const [error,    setError]    = useState(null)
-  const [saved,    setSaved]    = useState({})
-  const [toast,    setToast]    = useState({ visible: false, message: '' })
+  const [loading, setLoading] = useState(false)
+  const [error,   setError]   = useState(null)
+  const [saved,   setSaved]   = useState({})
+  const [toast,   setToast]   = useState({ visible: false, message: '' })
 
-  // Read fresh from localStorage each render so Settings changes are reflected
-  const { topics } = loadSettings()
+  const topics    = profile?.topics    ?? []
+  const apiKey    = (profile?.api_key    || '').trim()
+  const toneGuide = (profile?.tone_guide || '').trim()
 
   function showToast(msg) {
     setToast({ visible: true, message: msg })
@@ -291,13 +270,11 @@ export default function Trending() {
   }
 
   async function research() {
-    const { apiKey, toneGuide, topics: currentTopics } = loadSettings()
-
     if (!apiKey) {
       setError('no api key — add it in settings first')
       return
     }
-    if (!currentTopics.length) {
+    if (!topics.length) {
       setError('no topics set — add some in settings')
       return
     }
@@ -307,19 +284,16 @@ export default function Trending() {
     setResults([])
     setSaved({})
 
-    const topicsStr   = currentTopics.join(', ')
+    const topicsStr   = topics.join(', ')
     const userMessage =
       `search for what is actually trending RIGHT NOW today in these topics: ${topicsStr}.\n\n` +
       `Find real specific things — model drops, company news, viral moments, price moves, tool releases, anything blowing up.\n\n` +
       `Then generate 5-7 tweet ideas reacting to these trends in my voice. Mix these formats:\n` +
-      `- meme-style reactive posts: "[specific thing that just happened] and i can't keep up 😭 meanwhile i'm just here [my personal thing]"\n` +
-      `- the chaos contrast: big wild world news vs my quiet grind designing/coding/animating from india\n` +
-      `- hot takes on what the trend means for design, crypto, or building in public\n` +
-      `- relatable overwhelm at how fast things are moving in AI/CT/tech\n` +
+      `- meme-style reactive posts with self-aware, relatable energy\n` +
+      `- hot takes on what the trend means for the topics I care about\n` +
+      `- relatable overwhelm at how fast things are moving\n` +
       `- punchy lowercase lines that feel like texting a friend who's also into this stuff\n\n` +
-      `the energy i want: self-aware, a little chaotic, grounded in my actual life, never corporate, always lowercase.\n\n` +
-      `example of the exact vibe:\n` +
-      `"AI is getting wild rn and i can't keep up 😭 gemini 3.1 with 1M token context. spacex + xAI merging into a $1.25T company. apple rebuilding siri from scratch. meanwhile i'm just here using it to vibe code crypto dashboards and animate stuff at 2am from india"\n\n` +
+      `the energy i want: self-aware, a little chaotic, never corporate, always lowercase.\n\n` +
       `For each idea return JSON with: post_copy, image_idea, content_type, trend_source, source_url.\n` +
       `trend_source should be the specific thing you found trending (e.g. "Gemini 3.1 launch", "xAI + SpaceX merger").\n` +
       `source_url should be the actual URL of the source article or page for the trend. if no direct URL is available, omit the field or set it to null.\n` +
@@ -353,14 +327,12 @@ export default function Trending() {
         throw new Error(data.error?.message || `api error ${res.status}`)
       }
 
-      // Extract all text from content blocks — model puts final answer in the last text block
       const allText = (data.content ?? [])
         .filter(b => b.type === 'text')
         .map(b => b.text)
         .join(' ')
         .trim()
 
-      // Find the JSON array in the response (robust against surrounding prose)
       const jsonMatch = allText.match(/\[[\s\S]*\]/)
       if (!jsonMatch) throw new SyntaxError('no json array found in response')
 
@@ -370,8 +342,8 @@ export default function Trending() {
       const ts = new Date().toISOString()
       setResults(ideas)
       setLastResearched(ts)
-      localStorage.setItem('cj_trending_results', JSON.stringify(ideas))
-      localStorage.setItem('cj_trending_last',    ts)
+      localStorage.setItem(resultsKey, JSON.stringify(ideas))
+      localStorage.setItem(lastKey, ts)
     } catch (e) {
       if (e instanceof SyntaxError) {
         setError('couldn\'t parse the response — try again?')
@@ -385,7 +357,18 @@ export default function Trending() {
 
   async function handleSave(idea, idx) {
     try {
-      await saveIdeaToBank(idea, idx)
+      await insertIdea({
+        id:           String(Date.now() + idx),
+        title:        (idea.post_copy || '').slice(0, 60),
+        body:         idea.post_copy  || '',
+        image_idea:   idea.image_idea || '',
+        status:       'Draft',
+        status_color: '#FFD93D',
+        content_type: idea.content_type,
+        source:       'trending',
+        trend_source: idea.trend_source,
+        saved_at:     new Date().toISOString(),
+      }, user?.id)
       setSaved(prev => ({ ...prev, [idx]: true }))
       showToast('saved to idea bank!')
     } catch {
@@ -529,10 +512,8 @@ export default function Trending() {
         )}
       </div>
 
-      {/* Loading visual */}
       {loading && <ResearchingState />}
 
-      {/* Results */}
       {!loading && results.length > 0 && (
         <div>
           <p style={{

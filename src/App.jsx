@@ -1,4 +1,7 @@
 import { useState } from 'react'
+import { useAuth } from './AuthContext.jsx'
+import Login from './Login.jsx'
+import Onboarding from './Onboarding.jsx'
 import Settings from './Settings.jsx'
 import Journal from './Journal.jsx'
 import IdeaBank from './IdeaBank.jsx'
@@ -71,21 +74,44 @@ const NAV_ITEMS = [
   },
 ]
 
-
-
-
-
-
 const VIEWS = {
-  journal: <Journal />,
-  ideas: <IdeaBank />,
-  calendar: <CalendarPage />,
-  trending: <Trending />,
-  settings: <Settings />,
+  journal:  Journal,
+  ideas:    IdeaBank,
+  calendar: CalendarPage,
+  trending: Trending,
+  settings: Settings,
+}
+
+function LoadingScreen() {
+  return (
+    <div style={{
+      minHeight: '100vh',
+      background: '#FAFAF7',
+      display: 'flex',
+      alignItems: 'center',
+      justifyContent: 'center',
+    }}>
+      <div style={{
+        width: 40, height: 40,
+        border: '3px solid #8B5CF633',
+        borderTopColor: '#8B5CF6',
+        borderRadius: '50%',
+        animation: 'spin 0.7s linear infinite',
+      }} />
+      <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
+    </div>
+  )
 }
 
 export default function App() {
+  const { user, profile, authLoading, signOut } = useAuth()
   const [active, setActive] = useState('journal')
+
+  if (authLoading) return <LoadingScreen />
+  if (!user) return <Login />
+  if (!profile?.onboarding_complete) return <Onboarding />
+
+  const ActiveView = VIEWS[active]
 
   return (
     <div style={{ display: 'flex', minHeight: '100vh', background: '#FAFAF7' }}>
@@ -159,13 +185,50 @@ export default function App() {
           })}
         </nav>
 
+        {/* Logout button */}
+        <button
+          onClick={signOut}
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: '10px',
+            padding: '10px 14px',
+            borderRadius: '12px',
+            border: '2px solid #e0ddd6',
+            background: 'transparent',
+            color: '#aaa',
+            fontFamily: 'Syne, sans-serif',
+            fontSize: '13px',
+            fontWeight: 600,
+            cursor: 'pointer',
+            textAlign: 'left',
+            transition: 'all 0.15s',
+            marginBottom: '10px',
+            marginTop: '8px',
+          }}
+          onMouseEnter={e => {
+            e.currentTarget.style.borderColor = '#FF6B6B'
+            e.currentTarget.style.color = '#FF6B6B'
+          }}
+          onMouseLeave={e => {
+            e.currentTarget.style.borderColor = '#e0ddd6'
+            e.currentTarget.style.color = '#aaa'
+          }}
+        >
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/>
+            <polyline points="16 17 21 12 16 7"/>
+            <line x1="21" y1="12" x2="9" y2="12"/>
+          </svg>
+          log out
+        </button>
+
         {/* Credit tag */}
         <div style={{
           background: '#FFD93D',
           border: '2px solid #1a1a2e',
           borderRadius: '14px',
           padding: '14px',
-          marginTop: '16px',
           boxShadow: '3px 3px 0px #1a1a2e',
         }}>
           <div style={{ fontFamily: 'DM Sans, sans-serif', fontSize: '12px', color: '#1a1a2e' }}>
@@ -182,7 +245,7 @@ export default function App() {
 
       {/* Main content */}
       <main style={{ flex: 1, padding: '40px 48px', overflowY: 'auto' }}>
-        {VIEWS[active]}
+        <ActiveView />
       </main>
     </div>
   )

@@ -1,12 +1,6 @@
-import { useState, useRef } from 'react'
+import { useState, useRef, useEffect } from 'react'
 import { getIdeas, getCalendarPosts, getAllJournalEntries } from './db.js'
-
-const DEFAULT_TAGS = ['CT', 'AI', 'vibecoding', 'design', 'motion graphics', 'video content']
-
-const DEFAULT_TONE = `I am a soft, bubbly graphic designer based in India. I work in crypto.
-I do design, illustrations, motion graphics, and make videos.
-I vibe code apps with original designs. Always write in lowercase,
-short punchy lines, casual tone like texting a friend.`
+import { useAuth } from './AuthContext.jsx'
 
 const TAG_PALETTE = ['#8B5CF6', '#FF6B6B', '#6BFFB8', '#FFD93D', '#8B5CF6', '#FF6B6B', '#6BFFB8', '#FFD93D']
 
@@ -83,19 +77,28 @@ function Toast({ visible }) {
 }
 
 export default function Settings() {
-  const [apiKey, setApiKey] = useState(() => localStorage.getItem('cj_apiKey') || '')
-  const [topics, setTopics] = useState(() => {
-    const saved = localStorage.getItem('cj_topics')
-    return saved ? JSON.parse(saved) : DEFAULT_TAGS
-  })
-  const [tone, setTone] = useState(() => localStorage.getItem('cj_tone') || DEFAULT_TONE)
+  const { user, profile, updateProfile } = useAuth()
+
+  // Initialize from Supabase profile
+  const [apiKey, setApiKey] = useState(profile?.api_key   || '')
+  const [topics, setTopics] = useState(profile?.topics    || [])
+  const [tone,   setTone]   = useState(profile?.tone_guide || '')
   const [tagInput, setTagInput] = useState('')
   const [showApiKey, setShowApiKey] = useState(false)
   const [toastVisible, setToastVisible] = useState(false)
   const [exporting, setExporting] = useState(false)
 
   const toastTimer = useRef(null)
-  const saveTimer = useRef(null)
+  const saveTimer  = useRef(null)
+
+  // Sync with profile when it loads/changes
+  useEffect(() => {
+    if (profile) {
+      setApiKey(profile.api_key    || '')
+      setTopics(profile.topics     || [])
+      setTone(profile.tone_guide   || '')
+    }
+  }, [profile])
 
   function triggerToast() {
     setToastVisible(true)
@@ -103,42 +106,15 @@ export default function Settings() {
     toastTimer.current = setTimeout(() => setToastVisible(false), 2500)
   }
 
-  async function exportData() {
-    setExporting(true)
-    const [ideas, calendar, journal] = await Promise.all([
-      getIdeas(), getCalendarPosts(), getAllJournalEntries()
-    ])
-
-    const data = {
-      exportedAt: new Date().toISOString(),
-      settings: {
-        topics: JSON.parse(localStorage.getItem('cj_topics') || '[]'),
-        tone: localStorage.getItem('cj_tone') || '',
-      },
-      ideas,
-      calendarEntries: calendar,
-      journalEntries: journal,
-      trendingResults: JSON.parse(localStorage.getItem('cj_trending_results') || '[]'),
-    }
-
-    const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' })
-    const url = URL.createObjectURL(blob)
-    const a = document.createElement('a')
-    a.href = url
-    a.download = `content-journal-export-${new Date().toISOString().slice(0, 10)}.json`
-    a.click()
-    URL.revokeObjectURL(url)
-    setExporting(false)
-  }
-
-  function persistAll(newApiKey, newTopics, newTone) {
-    localStorage.setItem('cj_apiKey', newApiKey)
-    localStorage.setItem('cj_topics', JSON.stringify(newTopics))
-    localStorage.setItem('cj_tone', newTone)
+  async function persistAll(newApiKey, newTopics, newTone) {
+    await updateProfile({
+      api_key:    newApiKey,
+      topics:     newTopics,
+      tone_guide: newTone,
+    })
     triggerToast()
   }
 
-  // Debounce saves for text fields so toast doesn't fire every keystroke
   function debouncedPersist(newApiKey, newTopics, newTone) {
     if (saveTimer.current) clearTimeout(saveTimer.current)
     saveTimer.current = setTimeout(() => persistAll(newApiKey, newTopics, newTone), 800)
@@ -181,6 +157,33 @@ export default function Settings() {
     }
   }
 
+  async function exportData() {
+    if (!user) return
+    setExporting(true)
+    const [ideas, calendar, journal] = await Promise.all([
+      getIdeas(user.id),
+      getCalendarPosts(user.id),
+      getAllJournalEntries(user.id),
+    ])
+
+    const data = {
+      exportedAt: new Date().toISOString(),
+      settings: { topics, tone },
+      ideas,
+      calendarEntries: calendar,
+      journalEntries: journal,
+    }
+
+    const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' })
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = `content-journal-export-${new Date().toISOString().slice(0, 10)}.json`
+    a.click()
+    URL.revokeObjectURL(url)
+    setExporting(false)
+  }
+
   return (
     <div>
       <Toast visible={toastVisible} />
@@ -191,7 +194,7 @@ export default function Settings() {
       <div style={{ display: 'flex', flexDirection: 'column', gap: '20px', maxWidth: '580px' }}>
 
         {/* ── Claude API Key ── */}
-        <Section label="claude api key" hint="stored in localStorage · never sent anywhere except the claude api">
+        <Section label="claude api key" hint="stored securely in your profile · only sent directly to the Claude API">
           <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
             <input
               type={showApiKey ? 'text' : 'password'}
@@ -318,6 +321,7 @@ export default function Settings() {
             value={tone}
             onChange={e => handleToneChange(e.target.value)}
             rows={6}
+            placeholder="describe your writing style, tone, and who you are as a creator"
             style={{
               width: '100%',
               border: 'none',
@@ -334,7 +338,7 @@ export default function Settings() {
         </Section>
 
         {/* ── Export Data ── */}
-        <Section label="export data" hint="downloads all your ideas, journal entries, calendar, and trending results as a JSON file">
+        <Section label="export data" hint="downloads all your ideas, journal entries, and calendar as a JSON file">
           <button
             onClick={exportData}
             disabled={exporting}

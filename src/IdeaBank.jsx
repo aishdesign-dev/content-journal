@@ -8,6 +8,7 @@ import {
   insertCalendarPost,
   deleteCalendarPost as dbDeleteCalendarPost,
 } from './db.js'
+import { useAuth } from './AuthContext.jsx'
 
 // ── Type config ───────────────────────────────────────────────────────────────
 const TYPE_CONFIG = {
@@ -67,7 +68,6 @@ function CalendarPopover({ currentDate, onConfirm, onClose, calendarPosts = [] }
   const [date, setDate] = useState(currentDate || '')
   const ref = useRef(null)
 
-  // Close on outside click
   useEffect(() => {
     function onDown(e) {
       if (ref.current && !ref.current.contains(e.target)) onClose()
@@ -116,7 +116,6 @@ function CalendarPopover({ currentDate, onConfirm, onClose, calendarPosts = [] }
           outline: 'none',
         }}
       />
-      {/* 3rd-post warning */}
       {isFull && isNew && (
         <div style={{
           background: '#FB923C14', border: '1.5px solid #FB923C',
@@ -434,46 +433,46 @@ function FilterBar({ active, counts, onChange }) {
 
 // ── Main component ────────────────────────────────────────────────────────────
 export default function IdeaBank() {
-  const [ideas, setIdeas] = useState([])
-  const [calendarPosts, setCalendarPosts] = useState([])
-  const [filter, setFilter] = useState(null)
-  const [isLoading, setIsLoading] = useState(true)
-  const [toast, setToast] = useState({ visible: false, message: '' })
+  const { user } = useAuth()
 
-  // Per-idea debounce timers
+  const [ideas, setIdeas]               = useState([])
+  const [calendarPosts, setCalendarPosts] = useState([])
+  const [filter, setFilter]             = useState(null)
+  const [isLoading, setIsLoading]       = useState(true)
+  const [toast, setToast]               = useState({ visible: false, message: '' })
+
   const updateTimers = useRef(new Map())
 
   useEffect(() => {
-    Promise.all([getIdeas(), getCalendarPosts()]).then(([ideasData, postsData]) => {
+    if (!user) return
+    Promise.all([getIdeas(user.id), getCalendarPosts(user.id)]).then(([ideasData, postsData]) => {
       setIdeas(ideasData)
       setCalendarPosts(postsData)
       setIsLoading(false)
     })
-  }, [])
+  }, [user])
 
   function showToast(msg) {
     setToast({ visible: true, message: msg })
     setTimeout(() => setToast(t => ({ ...t, visible: false })), 2200)
   }
 
-  // Optimistic update + debounced Supabase persist
   const handleUpdate = useCallback((id, patch) => {
     setIdeas(prev => prev.map(idea => idea.id === id ? { ...idea, ...patch } : idea))
     if (updateTimers.current.has(id)) clearTimeout(updateTimers.current.get(id))
     updateTimers.current.set(id, setTimeout(() => {
-      dbUpdateIdea(id, patch)
+      dbUpdateIdea(id, patch, user?.id)
       updateTimers.current.delete(id)
     }, 500))
-  }, [])
+  }, [user])
 
   function handleDelete(id) {
     const idea = ideas.find(i => i.id === id)
     setIdeas(prev => prev.filter(i => i.id !== id))
-    dbDeleteIdea(id)
-    // If scheduled, also remove the calendar post
+    dbDeleteIdea(id, user?.id)
     if (idea?.scheduled_date) {
       const post = calendarPosts.find(p => p.idea_id === id)
-      if (post) dbDeleteCalendarPost(post.id)
+      if (post) dbDeleteCalendarPost(post.id, user?.id)
       setCalendarPosts(prev => prev.filter(p => p.idea_id !== id))
     }
     showToast('idea deleted')
@@ -482,14 +481,12 @@ export default function IdeaBank() {
   function scheduleIdea(id, date) {
     const idea = ideas.find(i => i.id === id)
 
-    // Update idea's scheduled_date optimistically
     setIdeas(prev => prev.map(i => i.id === id ? { ...i, scheduled_date: date } : i))
-    dbUpdateIdea(id, { scheduled_date: date })
+    dbUpdateIdea(id, { scheduled_date: date }, user?.id)
 
-    // Remove any existing calendar post for this idea
     const existingPost = calendarPosts.find(p => p.idea_id === id)
     if (existingPost) {
-      dbDeleteCalendarPost(existingPost.id)
+      dbDeleteCalendarPost(existingPost.id, user?.id)
       setCalendarPosts(prev => prev.filter(p => p.idea_id !== id))
     }
 
@@ -503,7 +500,7 @@ export default function IdeaBank() {
         posted: false,
       }
       setCalendarPosts(prev => [newPost, ...prev])
-      insertCalendarPost(newPost)
+      insertCalendarPost(newPost, user?.id)
       showToast('added to calendar!')
     }
   }
@@ -535,12 +532,10 @@ export default function IdeaBank() {
       </div>
 
       <div style={{ opacity: isLoading ? 0.5 : 1, transition: 'opacity 0.2s' }}>
-        {/* Filter bar — only if there are ideas */}
         {ideas.length > 0 && (
           <FilterBar active={filter} counts={counts} onChange={setFilter} />
         )}
 
-        {/* Empty state */}
         {!isLoading && ideas.length === 0 && (
           <div style={{
             border: '2px dashed #d0cdc8',
@@ -562,7 +557,6 @@ export default function IdeaBank() {
           </div>
         )}
 
-        {/* Filtered empty state */}
         {ideas.length > 0 && visible.length === 0 && (
           <div style={{
             border: '2px dashed #d0cdc8', borderRadius: 16,
@@ -574,7 +568,6 @@ export default function IdeaBank() {
           </div>
         )}
 
-        {/* Cards grid */}
         {visible.length > 0 && (
           <div style={{
             display: 'grid',
