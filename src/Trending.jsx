@@ -348,6 +348,8 @@ export default function Trending() {
       const data = await res.json()
 
       if (!res.ok) {
+        const isOverloaded = res.status === 529 || data.error?.type === 'overloaded_error'
+        if (isOverloaded) throw new Error('overloaded')
         throw new Error(data.error?.message || `api error ${res.status}`)
       }
 
@@ -489,13 +491,40 @@ export default function Trending() {
             background: '#FF6B6B1a', border: '2px solid #FF6B6B',
             borderRadius: 12, padding: '8px 14px',
             fontFamily: 'DM Sans, sans-serif', fontSize: 13, color: '#cc2222',
+            flexWrap: 'wrap',
           }}>
-            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#FF6B6B" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#FF6B6B" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0 }}>
               <circle cx="12" cy="12" r="10"/>
               <line x1="12" y1="8" x2="12" y2="12"/>
               <line x1="12" y1="16" x2="12.01" y2="16"/>
             </svg>
-            {error}
+            {error === 'overloaded'
+              ? 'claude is a little busy right now 😅 wait a minute and try again'
+              : error}
+            {error === 'overloaded' && (
+              <button
+                onClick={research}
+                style={{
+                  background: '#FF6B6B',
+                  color: '#fff',
+                  border: '2px solid #cc2222',
+                  borderRadius: 8,
+                  padding: '4px 12px',
+                  fontFamily: 'Syne, sans-serif',
+                  fontWeight: 700,
+                  fontSize: 12,
+                  cursor: 'pointer',
+                  display: 'flex', alignItems: 'center', gap: 5,
+                  flexShrink: 0,
+                }}
+              >
+                <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                  <polyline points="23 4 23 10 17 10"/>
+                  <path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/>
+                </svg>
+                retry
+              </button>
+            )}
           </div>
         )}
       </div>
