@@ -148,6 +148,28 @@ function ResultCard({ idea, index, onSave, saved }) {
           </span>
         )}
 
+        {idea.source_url && (
+          <a
+            href={idea.source_url}
+            target="_blank"
+            rel="noopener noreferrer"
+            style={{
+              background: '#38BDF814', border: '1.5px solid #38BDF888',
+              borderRadius: 8, padding: '3px 10px',
+              fontFamily: 'DM Sans, sans-serif', fontSize: 11, fontWeight: 600,
+              color: '#0369a1', textDecoration: 'none',
+              display: 'flex', alignItems: 'center', gap: 4,
+              whiteSpace: 'nowrap', flexShrink: 0,
+            }}
+          >
+            source
+            <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+              <line x1="5" y1="12" x2="19" y2="12"/>
+              <polyline points="12 5 19 12 12 19"/>
+            </svg>
+          </a>
+        )}
+
         <div style={{ flex: 1 }} />
 
         <button
@@ -298,11 +320,12 @@ export default function Trending() {
       `the energy i want: self-aware, a little chaotic, grounded in my actual life, never corporate, always lowercase.\n\n` +
       `example of the exact vibe:\n` +
       `"AI is getting wild rn and i can't keep up 😭 gemini 3.1 with 1M token context. spacex + xAI merging into a $1.25T company. apple rebuilding siri from scratch. meanwhile i'm just here using it to vibe code crypto dashboards and animate stuff at 2am from india"\n\n` +
-      `For each idea return JSON with: post_copy, image_idea, content_type, trend_source.\n` +
+      `For each idea return JSON with: post_copy, image_idea, content_type, trend_source, source_url.\n` +
       `trend_source should be the specific thing you found trending (e.g. "Gemini 3.1 launch", "xAI + SpaceX merger").\n` +
+      `source_url should be the actual URL of the source article or page for the trend. if no direct URL is available, omit the field or set it to null.\n` +
       `content_type must be one of: building, learning, design, video, life, ct-ai, fun.\n` +
       `Respond with valid JSON array only, no markdown backticks.\n\n` +
-      `only include trends, news and topics from the last 14 days. do not reference anything older than 2 weeks. if you cannot find recent content on a topic, skip it and focus on what is actually trending right now.`
+      `you must only use sources published within the last 14 days. for every piece of information you use, check the publication date. if you cannot confirm it was published within the last 14 days, do not include it. today's date is ${new Date().toLocaleDateString()}.`
 
     try {
       const res = await fetch('https://api.anthropic.com/v1/messages', {
