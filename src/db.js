@@ -8,25 +8,29 @@ export async function getJournalEntry(date, userId) {
     .select('*')
     .eq('date', date)
     .eq('user_id', userId)
-    .maybeSingle()
+    .order('id', { ascending: false })
+    .limit(1)
   if (error) console.error('getJournalEntry:', error)
-  return data
+  return data?.[0] ?? null
 }
 
 export async function upsertJournalEntry(date, fields, userId) {
-  const { data: existing } = await supabase
+  const { data: rows, error: selErr } = await supabase
     .from('journal_entries')
     .select('id')
     .eq('date', date)
     .eq('user_id', userId)
-    .maybeSingle()
+    .limit(1)
+
+  if (selErr) { console.error('upsertJournalEntry select:', selErr); return }
+
+  const existing = rows?.[0]
 
   if (existing) {
     const { error } = await supabase
       .from('journal_entries')
       .update(fields)
-      .eq('date', date)
-      .eq('user_id', userId)
+      .eq('id', existing.id)
     if (error) console.error('upsertJournalEntry update:', error)
   } else {
     const { error } = await supabase

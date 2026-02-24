@@ -304,7 +304,7 @@ export default function Journal() {
       const newIdeas = Array.isArray(parsed) ? parsed : [parsed]
       setIdeas(newIdeas)
       setSaved({})
-      upsertJournalEntry(TODAY_KEY, { generated_ideas: newIdeas, saved_indices: {} }, user.id)
+      await upsertJournalEntry(TODAY_KEY, { generated_ideas: newIdeas, saved_indices: {} }, user.id)
     } catch (e) {
       if (e instanceof SyntaxError) {
         setError('got a weird response — try again?')
