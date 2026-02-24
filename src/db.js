@@ -3,17 +3,23 @@ import { supabase } from './supabase.js'
 // ── Journal entries ────────────────────────────────────────────────────────────
 
 export async function getJournalEntry(date, userId) {
+  console.log('[db] getJournalEntry date:', date, 'userId:', userId)
+  if (!userId) { console.error('[db] getJournalEntry called with no userId'); return null }
   const { data, error } = await supabase
     .from('journal_entries')
     .select('*')
     .eq('date', date)
     .eq('user_id', userId)
     .limit(1)
-  if (error) console.error('getJournalEntry:', error)
+  if (error) console.error('getJournalEntry error:', error)
+  console.log('[db] getJournalEntry result:', data?.[0] ? 'row found' : 'no row', '| generated_ideas:', data?.[0]?.generated_ideas ? 'present' : 'null')
   return data?.[0] ?? null
 }
 
 export async function upsertJournalEntry(date, fields, userId) {
+  console.log('[db] upsertJournalEntry date:', date, 'userId:', userId, 'fields:', Object.keys(fields))
+  if (!userId) throw new Error('upsertJournalEntry called with no userId — user not authenticated')
+
   const { data: rows, error: selErr } = await supabase
     .from('journal_entries')
     .select('date')
@@ -24,6 +30,7 @@ export async function upsertJournalEntry(date, fields, userId) {
   if (selErr) throw new Error('db select: ' + selErr.message)
 
   const exists = (rows?.length ?? 0) > 0
+  console.log('[db] upsertJournalEntry row exists:', exists)
 
   if (exists) {
     const { error } = await supabase
@@ -32,11 +39,13 @@ export async function upsertJournalEntry(date, fields, userId) {
       .eq('date', date)
       .eq('user_id', userId)
     if (error) throw new Error('db update: ' + error.message)
+    console.log('[db] upsertJournalEntry updated ok')
   } else {
     const { error } = await supabase
       .from('journal_entries')
       .insert({ entry_text: '', date, user_id: userId, ...fields })
     if (error) throw new Error('db insert: ' + error.message)
+    console.log('[db] upsertJournalEntry inserted ok')
   }
 }
 
