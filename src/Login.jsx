@@ -23,7 +23,12 @@ export default function Login() {
         setSignupSuccess(true)
       }
     } catch (err) {
-      setError(err.message)
+      const msg = err?.message ?? ''
+      if (err instanceof TypeError || msg.toLowerCase().includes('fetch')) {
+        setError("can't reach the server — check your internet connection and try again. if the problem persists, the service may be temporarily unavailable.")
+      } else {
+        setError(msg || 'something went wrong — please try again')
+      }
     } finally {
       setLoading(false)
     }
