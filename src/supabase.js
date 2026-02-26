@@ -1,8 +1,18 @@
 import { createClient } from '@supabase/supabase-js'
 
+const supabaseUrl  = import.meta.env.VITE_SUPABASE_URL
+const supabaseKey  = import.meta.env.VITE_SUPABASE_ANON_KEY
+
+if (!supabaseUrl || !supabaseKey) {
+  throw new Error(
+    'Missing Supabase env vars. Set VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY ' +
+    '(locally in .env.local, in production via Vercel environment variables).'
+  )
+}
+
 export const supabase = createClient(
-  'https://fjpjmppjgswkjsdbucvv.supabase.co',
-  'sb_publishable_s1Ny4N40kzRpYBB_tqF_7g_qjow5R6J',
+  supabaseUrl,
+  supabaseKey,
   {
     auth: {
       lock: (_name, _acquireTimeout, fn) => fn(),
