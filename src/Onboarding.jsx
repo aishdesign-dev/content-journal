@@ -40,7 +40,7 @@ function Section({ label, hint, children }) {
 }
 
 export default function Onboarding() {
-  const { updateProfile } = useAuth()
+  const { updateProfile, signOut } = useAuth()
 
   const [toneGuide, setToneGuide] = useState('')
   const [topics, setTopics]       = useState([])
@@ -98,7 +98,27 @@ export default function Onboarding() {
       alignItems: 'flex-start',
       justifyContent: 'center',
       padding: '40px 24px 60px',
+      position: 'relative',
     }}>
+      <button
+        onClick={signOut}
+        style={{
+          position: 'absolute',
+          top: '20px',
+          right: '24px',
+          background: 'none',
+          border: 'none',
+          padding: 0,
+          fontFamily: 'DM Sans, sans-serif',
+          fontSize: '12px',
+          color: '#bbb',
+          cursor: 'pointer',
+          textDecoration: 'underline',
+          textUnderlineOffset: '2px',
+        }}
+      >
+        switch account / log out
+      </button>
       <div style={{ width: '100%', maxWidth: '560px' }}>
 
         {/* Logo */}
