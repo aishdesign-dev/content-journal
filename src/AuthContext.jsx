@@ -33,11 +33,14 @@ export function AuthProvider({ children }) {
       setAuthLoading(false)
     })
 
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (_event, session) => {
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
       if (!mounted) return
       const u = session?.user ?? null
       setUser(u)
       if (u) {
+        // TOKEN_REFRESHED fires when the tab regains focus — the user and profile
+        // are unchanged, so skip the re-fetch to avoid showing a loading spinner.
+        if (event === 'TOKEN_REFRESHED') return
         setProfile(undefined) // show loading screen while profile fetches, not Onboarding
         await fetchProfile(u.id)
       } else {
