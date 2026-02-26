@@ -10,6 +10,9 @@ if (!supabaseUrl || !supabaseKey) {
   )
 }
 
+// Visible in browser DevTools console — helps verify the correct project URL is in use.
+console.log('[supabase] connecting to:', supabaseUrl)
+
 export const supabase = createClient(
   supabaseUrl,
   supabaseKey,
