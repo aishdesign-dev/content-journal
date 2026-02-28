@@ -77,21 +77,25 @@ function Toast({ visible }) {
 }
 
 export default function Settings() {
-  const { user, profile, updateProfile } = useAuth()
+  const { user, profile, updateProfile, fetchProfile } = useAuth()
 
-  // Initialize from Supabase profile
-  const [apiKey, setApiKey] = useState(profile?.api_key   || '')
-  const [topics, setTopics] = useState(profile?.topics    || [])
+  const [apiKey, setApiKey] = useState(profile?.api_key    || '')
+  const [topics, setTopics] = useState(profile?.topics     || [])
   const [tone,   setTone]   = useState(profile?.tone_guide || '')
   const [tagInput, setTagInput] = useState('')
   const [showApiKey, setShowApiKey] = useState(false)
   const [toastVisible, setToastVisible] = useState(false)
+  const [saving, setSaving] = useState(false)
   const [exporting, setExporting] = useState(false)
 
   const toastTimer = useRef(null)
-  const saveTimer  = useRef(null)
 
-  // Sync with profile when it loads/changes
+  // On mount: fetch fresh settings from Supabase
+  useEffect(() => {
+    if (user) fetchProfile(user.id)
+  }, []) // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Sync local state whenever the profile (re-)loads from Supabase
   useEffect(() => {
     if (profile) {
       setApiKey(profile.api_key    || '')
@@ -106,28 +110,15 @@ export default function Settings() {
     toastTimer.current = setTimeout(() => setToastVisible(false), 2500)
   }
 
-  async function persistAll(newApiKey, newTopics, newTone) {
-    await updateProfile({
-      api_key:    newApiKey,
-      topics:     newTopics,
-      tone_guide: newTone,
+  async function handleSave() {
+    setSaving(true)
+    const { error } = await updateProfile({
+      api_key:    apiKey,
+      topics,
+      tone_guide: tone,
     })
-    triggerToast()
-  }
-
-  function debouncedPersist(newApiKey, newTopics, newTone) {
-    if (saveTimer.current) clearTimeout(saveTimer.current)
-    saveTimer.current = setTimeout(() => persistAll(newApiKey, newTopics, newTone), 800)
-  }
-
-  function handleApiKeyChange(val) {
-    setApiKey(val)
-    debouncedPersist(val, topics, tone)
-  }
-
-  function handleToneChange(val) {
-    setTone(val)
-    debouncedPersist(apiKey, topics, val)
+    setSaving(false)
+    if (!error) triggerToast()
   }
 
   function commitTag(raw) {
@@ -136,16 +127,12 @@ export default function Settings() {
       setTagInput('')
       return
     }
-    const next = [...topics, tag]
-    setTopics(next)
+    setTopics(prev => [...prev, tag])
     setTagInput('')
-    persistAll(apiKey, next, tone)
   }
 
   function removeTag(tag) {
-    const next = topics.filter(t => t !== tag)
-    setTopics(next)
-    persistAll(apiKey, next, tone)
+    setTopics(prev => prev.filter(t => t !== tag))
   }
 
   function handleTagKeyDown(e) {
@@ -199,7 +186,7 @@ export default function Settings() {
             <input
               type={showApiKey ? 'text' : 'password'}
               value={apiKey}
-              onChange={e => handleApiKeyChange(e.target.value)}
+              onChange={e => setApiKey(e.target.value)}
               placeholder="sk-ant-api03-..."
               spellCheck={false}
               style={{
@@ -319,7 +306,7 @@ export default function Settings() {
         <Section label="my tone guide" hint="used as context when generating content ideas or captions">
           <textarea
             value={tone}
-            onChange={e => handleToneChange(e.target.value)}
+            onChange={e => setTone(e.target.value)}
             rows={6}
             placeholder="describe your writing style, tone, and who you are as a creator"
             style={{
@@ -336,6 +323,49 @@ export default function Settings() {
             }}
           />
         </Section>
+
+        {/* ── Save Button ── */}
+        <button
+          onClick={handleSave}
+          disabled={saving}
+          style={{
+            display: 'inline-flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            gap: '8px',
+            background: saving ? '#d4d1cc' : '#8B5CF6',
+            color: saving ? '#888' : '#fff',
+            border: '2px solid #1a1a2e',
+            borderRadius: '14px',
+            padding: '14px 28px',
+            fontFamily: 'Syne, sans-serif',
+            fontWeight: 700,
+            fontSize: '15px',
+            cursor: saving ? 'not-allowed' : 'pointer',
+            boxShadow: saving ? 'none' : '4px 4px 0px #1a1a2e',
+            transition: 'all 0.15s',
+            width: '100%',
+          }}
+        >
+          {saving ? (
+            <>
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" style={{ animation: 'spin 0.7s linear infinite' }}>
+                <path d="M21 12a9 9 0 1 1-6.219-8.56"/>
+              </svg>
+              <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
+              saving...
+            </>
+          ) : (
+            <>
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/>
+                <polyline points="17 21 17 13 7 13 7 21"/>
+                <polyline points="7 3 7 8 15 8"/>
+              </svg>
+              save settings
+            </>
+          )}
+        </button>
 
         {/* ── Export Data ── */}
         <Section label="export data" hint="downloads all your ideas, journal entries, and calendar as a JSON file">
