@@ -156,7 +156,7 @@ export default function App() {
                 <path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/>
               </svg>
             </div>
-            <span style={{ fontFamily: 'Syne, sans-serif', fontSize: '18px', fontWeight: 800, color: '#1a1a2e', letterSpacing: '-0.3px' }}>Content<br/>Journal</span>
+            <span style={{ fontFamily: 'DM Sans, sans-serif', fontSize: '18px', fontWeight: 800, color: '#1a1a2e', letterSpacing: '-0.3px' }}>Content<br/>Journal</span>
           </div>
         </div>
 
@@ -177,7 +177,7 @@ export default function App() {
                   border: isActive ? `2px solid #1a1a2e` : '2px solid transparent',
                   background: isActive ? item.accent : 'transparent',
                   color: isActive ? (item.accent === '#FFD93D' ? '#1a1a2e' : '#fff') : '#666',
-                  fontFamily: 'Syne, sans-serif',
+                  fontFamily: 'DM Sans, sans-serif',
                   fontSize: '14px',
                   fontWeight: isActive ? 700 : 500,
                   cursor: 'pointer',
@@ -205,7 +205,7 @@ export default function App() {
             border: '2px solid #e0ddd6',
             background: 'transparent',
             color: '#aaa',
-            fontFamily: 'Syne, sans-serif',
+            fontFamily: 'DM Sans, sans-serif',
             fontSize: '13px',
             fontWeight: 600,
             cursor: 'pointer',

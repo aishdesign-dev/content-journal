@@ -52,7 +52,7 @@ function Toast({ visible, message }) {
       borderRadius: 14, padding: '12px 18px',
       boxShadow: '4px 4px 0px #1a1a2e',
       display: 'flex', alignItems: 'center', gap: 8,
-      fontFamily: 'Syne, sans-serif', fontWeight: 700, fontSize: 14,
+      fontFamily: 'DM Sans, sans-serif', fontWeight: 700, fontSize: 14,
       color: '#1a1a2e', zIndex: 9999, pointerEvents: 'none',
       transition: 'opacity 0.25s, transform 0.25s',
       opacity: visible ? 1 : 0,
@@ -154,7 +154,7 @@ function ResultCard({ idea, index, onSave, saved }) {
             background: saved ? '#6BFFB8' : '#FAFAF7',
             border: `2px solid ${saved ? '#1a1a2e' : '#ddd'}`,
             borderRadius: 10, padding: '5px 13px',
-            fontFamily: 'Syne, sans-serif', fontSize: 12, fontWeight: 700,
+            fontFamily: 'DM Sans, sans-serif', fontSize: 12, fontWeight: 700,
             color: '#1a1a2e', cursor: saved ? 'default' : 'pointer',
             boxShadow: saved ? '2px 2px 0px #1a1a2e' : 'none',
             whiteSpace: 'nowrap',
@@ -228,7 +228,7 @@ function ResearchingState() {
       </div>
       <div style={{ textAlign: 'center' }}>
         <p style={{
-          fontFamily: 'Syne, sans-serif', fontWeight: 700, fontSize: 16,
+          fontFamily: 'DM Sans, sans-serif', fontWeight: 700, fontSize: 16,
           color: '#1a1a2e', margin: '0 0 6px',
         }}>researching trends...</p>
         <p style={{
@@ -387,7 +387,7 @@ export default function Trending() {
 
       {/* Header */}
       <div style={{ marginBottom: 28 }}>
-        <h1 style={{ fontFamily: 'Syne, sans-serif', fontSize: 28, fontWeight: 700, color: '#1a1a2e', margin: '0 0 4px' }}>
+        <h1 style={{ fontFamily: 'DM Sans, sans-serif', fontSize: 28, fontWeight: 700, color: '#1a1a2e', margin: '0 0 4px' }}>
           Trending
         </h1>
         <p style={{ fontFamily: 'DM Sans, sans-serif', color: '#888', margin: 0, fontSize: 14 }}>
@@ -403,7 +403,7 @@ export default function Trending() {
         marginBottom: 20,
       }}>
         <p style={{
-          fontFamily: 'Syne, sans-serif', fontWeight: 700, fontSize: 11,
+          fontFamily: 'DM Sans, sans-serif', fontWeight: 700, fontSize: 11,
           color: '#aaa', textTransform: 'uppercase', letterSpacing: '0.8px',
           margin: '0 0 12px',
         }}>your topics</p>
@@ -444,7 +444,7 @@ export default function Trending() {
             border: '2px solid #1a1a2e',
             borderRadius: 14,
             padding: '14px 28px',
-            fontFamily: 'Syne, sans-serif', fontWeight: 800, fontSize: 16,
+            fontFamily: 'DM Sans, sans-serif', fontWeight: 800, fontSize: 16,
             cursor: loading ? 'not-allowed' : 'pointer',
             boxShadow: loading ? 'none' : '4px 4px 0px #1a1a2e',
             display: 'flex', alignItems: 'center', gap: 12,
@@ -493,7 +493,7 @@ export default function Trending() {
                   border: '2px solid #cc2222',
                   borderRadius: 8,
                   padding: '4px 12px',
-                  fontFamily: 'Syne, sans-serif',
+                  fontFamily: 'DM Sans, sans-serif',
                   fontWeight: 700,
                   fontSize: 12,
                   cursor: 'pointer',
@@ -517,7 +517,7 @@ export default function Trending() {
       {!loading && results.length > 0 && (
         <div>
           <p style={{
-            fontFamily: 'Syne, sans-serif', fontSize: 11, fontWeight: 700,
+            fontFamily: 'DM Sans, sans-serif', fontSize: 11, fontWeight: 700,
             color: '#aaa', textTransform: 'uppercase', letterSpacing: '0.9px',
             margin: '0 0 14px',
           }}>

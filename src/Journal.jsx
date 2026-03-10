@@ -53,7 +53,7 @@ function Toast({ message, visible, accent = '#6BFFB8' }) {
       display: 'flex',
       alignItems: 'center',
       gap: 8,
-      fontFamily: 'Syne, sans-serif',
+      fontFamily: 'DM Sans, sans-serif',
       fontWeight: 700,
       fontSize: 14,
       color: '#1a1a2e',
@@ -109,7 +109,7 @@ function IdeaCard({ idea, index, onSave, saved }) {
             border: `2px solid ${saved ? '#1a1a2e' : '#ddd'}`,
             borderRadius: 10,
             padding: '5px 13px',
-            fontFamily: 'Syne, sans-serif',
+            fontFamily: 'DM Sans, sans-serif',
             fontSize: 12,
             fontWeight: 700,
             color: '#1a1a2e',
@@ -377,7 +377,7 @@ export default function Journal() {
           letterSpacing: '0.9px',
         }}>{weekday}</p>
         <h1 style={{
-          fontFamily: 'Syne, sans-serif',
+          fontFamily: 'DM Sans, sans-serif',
           fontSize: 28,
           fontWeight: 700,
           color: '#1a1a2e',
@@ -437,7 +437,7 @@ export default function Journal() {
               border: '2px solid #1a1a2e',
               borderRadius: 12,
               padding: '12px 22px',
-              fontFamily: 'Syne, sans-serif',
+              fontFamily: 'DM Sans, sans-serif',
               fontWeight: 700,
               fontSize: 15,
               cursor: loading ? 'not-allowed' : 'pointer',
@@ -460,7 +460,7 @@ export default function Journal() {
         {ideas.length > 0 && (
           <div style={{ maxWidth: 680 }}>
             <p style={{
-              fontFamily: 'Syne, sans-serif',
+              fontFamily: 'DM Sans, sans-serif',
               fontSize: 11,
               fontWeight: 700,
               color: '#aaa',

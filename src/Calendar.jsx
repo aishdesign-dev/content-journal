@@ -53,7 +53,7 @@ function Toast({ visible, message, accent = '#6BFFB8' }) {
       background: accent, border: '2px solid #1a1a2e', borderRadius: 14,
       padding: '12px 18px', boxShadow: '4px 4px 0px #1a1a2e',
       display: 'flex', alignItems: 'center', gap: 8,
-      fontFamily: 'Syne, sans-serif', fontWeight: 700, fontSize: 14,
+      fontFamily: 'DM Sans, sans-serif', fontWeight: 700, fontSize: 14,
       color: '#1a1a2e', zIndex: 9999, pointerEvents: 'none',
       transition: 'opacity 0.25s, transform 0.25s',
       opacity: visible ? 1 : 0,
@@ -144,7 +144,7 @@ function DayCell({
     >
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 3 }}>
         <span style={{
-          fontFamily: isToday ? 'Syne, sans-serif' : 'DM Sans, sans-serif',
+          fontFamily: isToday ? 'DM Sans, sans-serif' : 'DM Sans, sans-serif',
           fontSize: 12, fontWeight: isToday ? 800 : 500,
           color: isToday ? '#8B5CF6' : isCurrentMonth ? '#1a1a2e' : '#bbb',
           width: 22, height: 22,
@@ -293,7 +293,7 @@ function SidePanel({ entry, onClose, onTogglePosted, onRemove }) {
             color: copied ? '#1a1a2e' : '#fff',
             border: '2px solid #1a1a2e',
             borderRadius: 10, padding: '10px 16px',
-            fontFamily: 'Syne, sans-serif', fontSize: 13, fontWeight: 700,
+            fontFamily: 'DM Sans, sans-serif', fontSize: 13, fontWeight: 700,
             cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
             transition: 'background 0.2s, color 0.2s',
             boxShadow: copied ? 'none' : '3px 3px 0px #55555533',
@@ -324,7 +324,7 @@ function SidePanel({ entry, onClose, onTogglePosted, onRemove }) {
             color: posted ? '#888' : '#1a1a2e',
             border: `2px solid ${posted ? '#d0cdc8' : '#1a1a2e'}`,
             borderRadius: 10, padding: '10px 16px',
-            fontFamily: 'Syne, sans-serif', fontSize: 13, fontWeight: 700,
+            fontFamily: 'DM Sans, sans-serif', fontSize: 13, fontWeight: 700,
             cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
             transition: 'all 0.15s',
             boxShadow: posted ? 'none' : '3px 3px 0px #1a1a2e',
@@ -354,7 +354,7 @@ function SidePanel({ entry, onClose, onTogglePosted, onRemove }) {
             background: 'transparent', color: '#FF6B6B',
             border: '2px solid #FF6B6B',
             borderRadius: 10, padding: '10px 16px',
-            fontFamily: 'Syne, sans-serif', fontSize: 13, fontWeight: 700,
+            fontFamily: 'DM Sans, sans-serif', fontSize: 13, fontWeight: 700,
             cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
             transition: 'background 0.15s',
           }}
@@ -546,7 +546,7 @@ export default function Calendar() {
 
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 28 }}>
         <div>
-          <h1 style={{ fontFamily: 'Syne, sans-serif', fontSize: 28, fontWeight: 700, color: '#1a1a2e', margin: '0 0 4px' }}>
+          <h1 style={{ fontFamily: 'DM Sans, sans-serif', fontSize: 28, fontWeight: 700, color: '#1a1a2e', margin: '0 0 4px' }}>
             Calendar
           </h1>
           <p style={{ fontFamily: 'DM Sans, sans-serif', color: '#888', margin: 0, fontSize: 14 }}>
@@ -564,7 +564,7 @@ export default function Calendar() {
           </NavBtn>
 
           <span style={{
-            fontFamily: 'Syne, sans-serif', fontWeight: 700, fontSize: 15,
+            fontFamily: 'DM Sans, sans-serif', fontWeight: 700, fontSize: 15,
             color: '#1a1a2e', minWidth: 155, textAlign: 'center',
           }}>{MONTHS[month]} {year}</span>
 
@@ -580,7 +580,7 @@ export default function Calendar() {
               style={{
                 background: '#FAFAF7', border: '2px solid #1a1a2e',
                 borderRadius: 10, padding: '6px 14px',
-                fontFamily: 'Syne, sans-serif', fontWeight: 700, fontSize: 12,
+                fontFamily: 'DM Sans, sans-serif', fontWeight: 700, fontSize: 12,
                 cursor: 'pointer', color: '#1a1a2e',
                 boxShadow: '2px 2px 0px #1a1a2e',
               }}
@@ -610,7 +610,7 @@ export default function Calendar() {
               {WEEKDAYS.map(d => (
                 <div key={d} style={{
                   textAlign: 'center',
-                  fontFamily: 'Syne, sans-serif', fontSize: 10, fontWeight: 700,
+                  fontFamily: 'DM Sans, sans-serif', fontSize: 10, fontWeight: 700,
                   color: '#aaa', padding: '4px 0',
                   textTransform: 'uppercase', letterSpacing: '0.6px',
                 }}>{d}</div>

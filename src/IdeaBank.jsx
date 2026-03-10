@@ -94,7 +94,7 @@ function CalendarPopover({ currentDate, onConfirm, onClose, calendarPosts = [] }
       minWidth: 230,
     }}>
       <p style={{
-        fontFamily: 'Syne, sans-serif', fontWeight: 700,
+        fontFamily: 'DM Sans, sans-serif', fontWeight: 700,
         fontSize: 12, margin: '0 0 10px', color: '#1a1a2e',
         textTransform: 'uppercase', letterSpacing: '0.6px',
       }}>schedule for</p>
@@ -142,7 +142,7 @@ function CalendarPopover({ currentDate, onConfirm, onClose, calendarPosts = [] }
             border: '2px solid #1a1a2e',
             borderRadius: 8,
             padding: '7px 0',
-            fontFamily: 'Syne, sans-serif',
+            fontFamily: 'DM Sans, sans-serif',
             fontWeight: 700,
             fontSize: 12,
             cursor: date ? 'pointer' : 'not-allowed',
@@ -156,7 +156,7 @@ function CalendarPopover({ currentDate, onConfirm, onClose, calendarPosts = [] }
             border: '2px solid #ddd',
             borderRadius: 8,
             padding: '7px 12px',
-            fontFamily: 'Syne, sans-serif',
+            fontFamily: 'DM Sans, sans-serif',
             fontWeight: 600,
             fontSize: 12,
             cursor: 'pointer',
@@ -180,7 +180,7 @@ function Toast({ visible, message, accent = '#6BFFB8' }) {
       padding: '12px 18px',
       boxShadow: '4px 4px 0px #1a1a2e',
       display: 'flex', alignItems: 'center', gap: 8,
-      fontFamily: 'Syne, sans-serif', fontWeight: 700, fontSize: 14,
+      fontFamily: 'DM Sans, sans-serif', fontWeight: 700, fontSize: 14,
       color: '#1a1a2e',
       zIndex: 9999, pointerEvents: 'none',
       transition: 'opacity 0.25s, transform 0.25s',
@@ -334,7 +334,7 @@ function IdeaCard({ idea, onUpdate, onDelete, onSchedule, calendarPosts }) {
             border: `2px solid ${scheduled ? '#8B5CF6' : '#ddd'}`,
             borderRadius: 10,
             padding: '6px 13px',
-            fontFamily: 'Syne, sans-serif',
+            fontFamily: 'DM Sans, sans-serif',
             fontSize: 12, fontWeight: 700,
             color: scheduled ? '#6d35d9' : '#888',
             cursor: 'pointer',
@@ -393,7 +393,7 @@ function FilterBar({ active, counts, onChange }) {
           border: '2px solid #1a1a2e',
           borderRadius: 10,
           padding: '6px 14px',
-          fontFamily: 'Syne, sans-serif',
+          fontFamily: 'DM Sans, sans-serif',
           fontSize: 12, fontWeight: 700,
           cursor: 'pointer',
           boxShadow: active === null ? '2px 2px 0px #55555544' : 'none',
@@ -416,7 +416,7 @@ function FilterBar({ active, counts, onChange }) {
               border: `2px solid ${color}`,
               borderRadius: 10,
               padding: '6px 14px',
-              fontFamily: 'Syne, sans-serif',
+              fontFamily: 'DM Sans, sans-serif',
               fontSize: 12, fontWeight: 700,
               cursor: 'pointer',
               boxShadow: isActive ? `2px 2px 0px ${color}88` : 'none',
@@ -519,7 +519,7 @@ export default function IdeaBank() {
 
       {/* Header */}
       <div style={{ marginBottom: 24 }}>
-        <h1 style={{ fontFamily: 'Syne, sans-serif', fontSize: 28, fontWeight: 700, color: '#1a1a2e', margin: '0 0 4px' }}>
+        <h1 style={{ fontFamily: 'DM Sans, sans-serif', fontSize: 28, fontWeight: 700, color: '#1a1a2e', margin: '0 0 4px' }}>
           Idea Bank
         </h1>
         <p style={{ fontFamily: 'DM Sans, sans-serif', color: '#888', margin: 0, fontSize: 14 }}>
@@ -547,7 +547,7 @@ export default function IdeaBank() {
           }}>
             <div style={{ fontSize: 36, marginBottom: 12 }}>💡</div>
             <p style={{
-              fontFamily: 'Syne, sans-serif', fontSize: 16, fontWeight: 700,
+              fontFamily: 'DM Sans, sans-serif', fontSize: 16, fontWeight: 700,
               color: '#bbb', margin: '0 0 8px',
             }}>no ideas yet — go journal your day!</p>
             <p style={{
@@ -562,7 +562,7 @@ export default function IdeaBank() {
             border: '2px dashed #d0cdc8', borderRadius: 16,
             padding: '36px 24px', textAlign: 'center', maxWidth: 360,
           }}>
-            <p style={{ fontFamily: 'Syne, sans-serif', fontSize: 14, fontWeight: 700, color: '#bbb', margin: 0 }}>
+            <p style={{ fontFamily: 'DM Sans, sans-serif', fontSize: 14, fontWeight: 700, color: '#bbb', margin: 0 }}>
               no {filter} ideas yet
             </p>
           </div>

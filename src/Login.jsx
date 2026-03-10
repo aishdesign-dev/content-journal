@@ -80,7 +80,7 @@ export default function Login() {
               <path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/>
             </svg>
           </div>
-          <span style={{ fontFamily: 'Syne, sans-serif', fontSize: '20px', fontWeight: 800, color: '#1a1a2e', letterSpacing: '-0.3px' }}>
+          <span style={{ fontFamily: 'DM Sans, sans-serif', fontSize: '20px', fontWeight: 800, color: '#1a1a2e', letterSpacing: '-0.3px' }}>
             Content Journal
           </span>
         </div>
@@ -98,7 +98,7 @@ export default function Login() {
             /* ── Email confirmation state ── */
             <div style={{ textAlign: 'center' }}>
               <div style={{ fontSize: '40px', marginBottom: '16px' }}>✉️</div>
-              <h2 style={{ fontFamily: 'Syne, sans-serif', fontSize: '20px', fontWeight: 700, color: '#1a1a2e', margin: '0 0 10px' }}>
+              <h2 style={{ fontFamily: 'DM Sans, sans-serif', fontSize: '20px', fontWeight: 700, color: '#1a1a2e', margin: '0 0 10px' }}>
                 check your email
               </h2>
               <p style={{ fontFamily: 'DM Sans, sans-serif', fontSize: '14px', color: '#888', lineHeight: 1.6, margin: '0 0 24px' }}>
@@ -114,7 +114,7 @@ export default function Login() {
                   border: '2px solid #1a1a2e',
                   borderRadius: '12px',
                   padding: '13px',
-                  fontFamily: 'Syne, sans-serif',
+                  fontFamily: 'DM Sans, sans-serif',
                   fontWeight: 700,
                   fontSize: '15px',
                   cursor: 'pointer',
@@ -125,7 +125,7 @@ export default function Login() {
           ) : (
             <>
               {/* ── Header ── */}
-              <h1 style={{ fontFamily: 'Syne, sans-serif', fontSize: '22px', fontWeight: 700, color: '#1a1a2e', margin: '0 0 4px' }}>
+              <h1 style={{ fontFamily: 'DM Sans, sans-serif', fontSize: '22px', fontWeight: 700, color: '#1a1a2e', margin: '0 0 4px' }}>
                 {mode === 'login' ? 'welcome back' : 'create your account'}
               </h1>
               <p style={{ fontFamily: 'DM Sans, sans-serif', fontSize: '13px', color: '#888', margin: '0 0 28px' }}>
@@ -139,7 +139,7 @@ export default function Login() {
                   <div>
                     <label style={{
                       display: 'block',
-                      fontFamily: 'Syne, sans-serif', fontSize: '11px', fontWeight: 700,
+                      fontFamily: 'DM Sans, sans-serif', fontSize: '11px', fontWeight: 700,
                       color: '#aaa', textTransform: 'uppercase', letterSpacing: '0.8px',
                       marginBottom: '7px',
                     }}>email</label>
@@ -158,7 +158,7 @@ export default function Login() {
                   <div>
                     <label style={{
                       display: 'block',
-                      fontFamily: 'Syne, sans-serif', fontSize: '11px', fontWeight: 700,
+                      fontFamily: 'DM Sans, sans-serif', fontSize: '11px', fontWeight: 700,
                       color: '#aaa', textTransform: 'uppercase', letterSpacing: '0.8px',
                       marginBottom: '7px',
                     }}>password</label>
@@ -201,7 +201,7 @@ export default function Login() {
                     border: '2px solid #1a1a2e',
                     borderRadius: '12px',
                     padding: '13px',
-                    fontFamily: 'Syne, sans-serif',
+                    fontFamily: 'DM Sans, sans-serif',
                     fontWeight: 700,
                     fontSize: '15px',
                     cursor: loading ? 'not-allowed' : 'pointer',

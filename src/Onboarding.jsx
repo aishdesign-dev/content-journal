@@ -18,7 +18,7 @@ function Section({ label, hint, children }) {
     }}>
       <label style={{
         display: 'block',
-        fontFamily: 'Syne, sans-serif',
+        fontFamily: 'DM Sans, sans-serif',
         fontWeight: 700,
         fontSize: '11px',
         color: '#aaa',
@@ -136,12 +136,12 @@ export default function Onboarding() {
               <path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/>
             </svg>
           </div>
-          <span style={{ fontFamily: 'Syne, sans-serif', fontSize: '20px', fontWeight: 800, color: '#1a1a2e', letterSpacing: '-0.3px' }}>
+          <span style={{ fontFamily: 'DM Sans, sans-serif', fontSize: '20px', fontWeight: 800, color: '#1a1a2e', letterSpacing: '-0.3px' }}>
             Content Journal
           </span>
         </div>
 
-        <h1 style={{ fontFamily: 'Syne, sans-serif', fontSize: '26px', fontWeight: 700, color: '#1a1a2e', margin: '0 0 6px' }}>
+        <h1 style={{ fontFamily: 'DM Sans, sans-serif', fontSize: '26px', fontWeight: 700, color: '#1a1a2e', margin: '0 0 6px' }}>
           let's set up your journal
         </h1>
         <p style={{ fontFamily: 'DM Sans, sans-serif', fontSize: '14px', color: '#888', margin: '0 0 32px', lineHeight: 1.6 }}>
@@ -284,7 +284,7 @@ export default function Onboarding() {
               border: '2px solid #1a1a2e',
               borderRadius: '14px',
               padding: '15px',
-              fontFamily: 'Syne, sans-serif',
+              fontFamily: 'DM Sans, sans-serif',
               fontWeight: 700,
               fontSize: '16px',
               cursor: saving ? 'not-allowed' : 'pointer',

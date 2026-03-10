@@ -23,7 +23,7 @@ function Section({ label, hint, children }) {
     }}>
       <label style={{
         display: 'block',
-        fontFamily: 'Syne, sans-serif',
+        fontFamily: 'DM Sans, sans-serif',
         fontWeight: 700,
         fontSize: '11px',
         color: '#aaa',
@@ -58,7 +58,7 @@ function Toast({ visible }) {
       display: 'flex',
       alignItems: 'center',
       gap: '8px',
-      fontFamily: 'Syne, sans-serif',
+      fontFamily: 'DM Sans, sans-serif',
       fontWeight: 700,
       fontSize: '14px',
       color: '#1a1a2e',
@@ -175,7 +175,7 @@ export default function Settings() {
     <div>
       <Toast visible={toastVisible} />
 
-      <h1 style={{ fontFamily: 'Syne, sans-serif', fontSize: '28px', fontWeight: 700, color: '#1a1a2e', margin: '0 0 6px' }}>Settings</h1>
+      <h1 style={{ fontFamily: 'DM Sans, sans-serif', fontSize: '28px', fontWeight: 700, color: '#1a1a2e', margin: '0 0 6px' }}>Settings</h1>
       <p style={{ fontFamily: 'DM Sans, sans-serif', color: '#888', margin: '0 0 32px', fontSize: '14px' }}>your journal, your rules</p>
 
       <div style={{ display: 'flex', flexDirection: 'column', gap: '20px', maxWidth: '580px' }}>
@@ -338,7 +338,7 @@ export default function Settings() {
             border: '2px solid #1a1a2e',
             borderRadius: '14px',
             padding: '14px 28px',
-            fontFamily: 'Syne, sans-serif',
+            fontFamily: 'DM Sans, sans-serif',
             fontWeight: 700,
             fontSize: '15px',
             cursor: saving ? 'not-allowed' : 'pointer',
@@ -381,7 +381,7 @@ export default function Settings() {
               border: '2px solid #1a1a2e',
               borderRadius: '12px',
               padding: '11px 20px',
-              fontFamily: 'Syne, sans-serif',
+              fontFamily: 'DM Sans, sans-serif',
               fontWeight: 700,
               fontSize: '14px',
               cursor: exporting ? 'not-allowed' : 'pointer',
